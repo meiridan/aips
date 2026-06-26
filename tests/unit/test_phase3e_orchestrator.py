@@ -46,6 +46,11 @@ class _FakeLLM:
             return dict(_COMMIT_JSON)
         return {}
 
+    async def chat_stream(self, messages, **kwargs):
+        self.chat_calls.append(messages)
+        for piece in ["I'm ", "right ", "here ", "with you."]:
+            yield piece
+
 
 class _FakeMemory:
     def __init__(self):
@@ -174,6 +179,44 @@ async def test_debug_callback_fires_events(db_sessionmaker, seeded_ids):
     assert {"step", "memory", "llm"} <= cats
     assert "Moment" in labels
     assert "complete" in labels.lower()
+
+
+@pytest.mark.asyncio
+async def test_stream_message_yields_chunks_and_finalizes(db_sessionmaker, seeded_ids):
+    from maya.emotional.service import EmotionalService
+    from maya.relationship.service import RelationshipService
+
+    uid, cid = seeded_ids
+    orch = _make_orch(db_sessionmaker, _FakeLLM(), _FakeMemory())
+
+    pieces = []
+    async for p in orch.stream_message(uid, cid, "I need you"):
+        pieces.append(p)
+
+    # streamed in multiple chunks, joining to the full reply
+    assert len(pieces) > 1
+    assert "".join(pieces) == "I'm right here with you."
+
+    # post-processing ran AFTER streaming (state updated, interaction counted)
+    emo = await EmotionalService(db_sessionmaker).get(cid, baseline={"feelings": {}})
+    assert "tender" in emo.feelings
+    rel = await RelationshipService(db_sessionmaker).get(cid, uid)
+    assert rel.total_interactions == 1
+
+
+@pytest.mark.asyncio
+async def test_stream_and_nonstream_save_same_way(db_sessionmaker, seeded_ids):
+    from sqlalchemy import select
+
+    from maya.db.models import Message
+
+    uid, cid = seeded_ids
+    orch = _make_orch(db_sessionmaker, _FakeLLM(), _FakeMemory())
+    async for _ in orch.stream_message(uid, cid, "hello"):
+        pass
+    async with db_sessionmaker() as s:
+        roles = [m.role for m in (await s.scalars(select(Message).where(Message.companion_id == cid))).all()]
+    assert "user" in roles and "assistant" in roles
 
 
 @pytest.mark.asyncio

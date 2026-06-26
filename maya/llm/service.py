@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import AsyncIterator
 from typing import Any
 
 import litellm
@@ -87,6 +88,75 @@ class LLMService:
             latency_ms = int((time.perf_counter() - started) * 1000)
             self._log_cost(response, model, model_tier, purpose, latency_ms)
             return response.choices[0].message.content or ""
+
+        raise LLMUnavailableError(
+            f"All models failed for tier {model_tier!r}: {last_error}"
+        )
+
+    async def chat_stream(
+        self,
+        messages: list[dict],
+        model_tier: str = "main",
+        max_tokens: int = 800,
+        temperature: float = 0.8,
+        purpose: str = "main_response",
+    ) -> AsyncIterator[str]:
+        """Stream the reply token-by-token, trying primary then fallbacks.
+
+        Fail-over only happens BEFORE the first token is emitted — once we've
+        streamed any content to the caller we can't silently switch models, so a
+        mid-stream failure raises LLMUnavailableError. Cost is logged after the
+        stream completes by rebuilding the full response from the chunks.
+        """
+        models = self._tiers.get(model_tier)
+        if not models:
+            raise ValueError(f"Unknown model tier: {model_tier!r}")
+
+        last_error: Exception | None = None
+        for model in models:
+            started = time.perf_counter()
+            chunks: list[Any] = []
+            yielded = False
+            try:
+                stream = await litellm.acompletion(
+                    model=model,
+                    messages=messages,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    stream=True,
+                    stream_options={"include_usage": True},
+                )
+                async for chunk in stream:
+                    chunks.append(chunk)
+                    try:
+                        delta = chunk.choices[0].delta.content
+                    except (IndexError, AttributeError):
+                        delta = None
+                    if delta:
+                        yielded = True
+                        yield delta
+
+                latency_ms = int((time.perf_counter() - started) * 1000)
+                try:
+                    rebuilt = litellm.stream_chunk_builder(chunks, messages=messages)
+                    self._log_cost(rebuilt, model, model_tier, purpose, latency_ms)
+                except Exception:  # noqa: BLE001 - cost logging is best-effort
+                    pass
+                return
+            except Exception as exc:  # noqa: BLE001 - provider error
+                last_error = exc
+                log.warning(
+                    "llm_stream_failed",
+                    model=model,
+                    tier=model_tier,
+                    purpose=purpose,
+                    error=str(exc),
+                )
+                if yielded:
+                    raise LLMUnavailableError(
+                        f"Stream interrupted on {model}: {exc}"
+                    ) from exc
+                continue
 
         raise LLMUnavailableError(
             f"All models failed for tier {model_tier!r}: {last_error}"

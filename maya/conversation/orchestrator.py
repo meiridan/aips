@@ -14,7 +14,8 @@ from __future__ import annotations
 import asyncio
 import inspect
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from sqlalchemy import select
@@ -22,7 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from maya.companions.commitments import CommitmentService
 from maya.companions.templates import get_template
-from maya.conversation.moment_analyzer import MomentAnalysis, MomentAnalyzer
+from maya.conversation.moment_analyzer import (
+    MomentAnalysis,
+    MomentAnalyzer,
+    default_moment,
+)
 from maya.conversation.prompt_builder import (
     SYSTEM_PROMPT_TEMPLATE,
     build_basic,
@@ -53,6 +58,19 @@ MEMORY_LIMIT = 15
 SIGNIFICANT_INTENSITY = 0.8
 
 StepCallback = Callable[[str, str, dict], Awaitable[None] | None]
+
+
+@dataclass
+class _TurnCtx:
+    """Everything carried from prompt-prep into reply finalization."""
+
+    user_id: uuid.UUID
+    companion_id: uuid.UUID
+    companion_name: str
+    user_message: str
+    prompt: list[dict]
+    moment_task: asyncio.Task
+    on_step: StepCallback | None
 
 
 async def _emit(on_step: StepCallback | None, category: str, label: str, data: dict) -> None:
@@ -96,13 +114,54 @@ class Orchestrator:
         content: str,
         on_step: StepCallback | None = None,
     ) -> str:
+        """Non-streaming turn (CLI / tests). Collects the full reply."""
+        ctx = await self._prepare(user_id, companion_id, content, on_step)
+        await _emit(on_step, "llm", "🤖 Calling LLM (main tier)", {"messages": len(ctx.prompt)})
+        response = await self.llm.chat(ctx.prompt, model_tier=self._default_tier)
+        await _emit(on_step, "llm", "✅ LLM response received", {"preview": response[:120]})
+        await self._finalize(ctx, response)
+        return response
+
+    async def stream_message(
+        self,
+        user_id: uuid.UUID,
+        companion_id: uuid.UUID,
+        content: str,
+        on_step: StepCallback | None = None,
+    ) -> AsyncIterator[str]:
+        """Streaming turn: yields reply chunks as they arrive (web UI).
+
+        Post-processing runs AFTER the last chunk is yielded — the reply is on
+        screen before any bookkeeping, and bookkeeping is still awaited before
+        the generator returns (Decision 2: no loss on disconnect).
+        """
+        ctx = await self._prepare(user_id, companion_id, content, on_step)
+        await _emit(on_step, "llm", "🤖 Streaming LLM (main tier)", {"messages": len(ctx.prompt)})
+        chunks: list[str] = []
+        async for piece in self.llm.chat_stream(ctx.prompt, model_tier=self._default_tier):
+            chunks.append(piece)
+            yield piece
+        response = "".join(chunks)
+        await _emit(on_step, "llm", "✅ Stream complete", {"chars": len(response)})
+        await self._finalize(ctx, response)
+
+    async def _prepare(
+        self,
+        user_id: uuid.UUID,
+        companion_id: uuid.UUID,
+        content: str,
+        on_step: StepCallback | None,
+    ) -> _TurnCtx:
+        """Steps 1–4: save user msg, gather context, kick off moment analysis
+        concurrently, and build the prompt. Moment is OFF the critical path —
+        the main LLM call starts with neutral guidance while the analyzer runs
+        in parallel and feeds post-processing (emotional state)."""
         await _emit(on_step, "step", "📥 Received user message", {"content": content[:100]})
 
         # 1. Save user message.
         async with self._sessionmaker() as session:
             await self._save_message(session, companion_id, user_id, "user", content)
             await session.commit()
-        await _emit(on_step, "step", "✅ User message saved", {})
 
         # 2. Gather context in parallel.
         companion = await self._load_companion(companion_id)
@@ -129,15 +188,13 @@ class Orchestrator:
             "feelings": getattr(emotional, "feelings", {}),
         })
 
-        # 3. Analyze the moment.
-        moment = await self.moment_analyzer.analyze(content, emotional, relationship, recent)
-        await _emit(on_step, "step", f"🔍 Moment: {moment.moment_type}", {
-            "moment_type": moment.moment_type,
-            "intensity": moment.emotional_intensity,
-            "priority": moment.character_priority,
-        })
+        # 3. Moment analysis — concurrent, not awaited here (off critical path).
+        moment_task = asyncio.create_task(
+            self.moment_analyzer.analyze(content, emotional, relationship, recent)
+        )
 
-        # 4. Build the rich prompt.
+        # 4. Build the rich prompt with neutral moment guidance so the main call
+        # can start immediately. The real moment refines emotional state later.
         user_name = await self._user_name(user_id)
         prompt = build_phase3(
             companion=companion,
@@ -145,44 +202,50 @@ class Orchestrator:
             emotional=emotional,
             relationship=relationship,
             commitments=commitments,
-            moment=moment,
+            moment=default_moment(),
             recent_msgs=recent,
             user_name=user_name,
             hours_since_last=hours_since,
         )
-        await _emit(on_step, "step", "🔨 Built Phase-3 prompt", {
-            "messages": len(prompt),
-            "system_preview": prompt[0]["content"][:300],
-        })
-
-        # 5. Call the main LLM.
-        await _emit(on_step, "llm", "🤖 Calling LLM (main tier)", {"messages": len(prompt)})
-        response = await self.llm.chat(prompt, model_tier=self._default_tier)
-        await _emit(on_step, "llm", "✅ LLM response received", {"preview": response[:120]})
-
-        # 6. Save assistant message.
-        async with self._sessionmaker() as session:
-            assistant_msg = await self._save_message(
-                session, companion_id, user_id, "assistant", response
-            )
-            assistant_msg_id = assistant_msg.id
-            await session.commit()
-        await _emit(on_step, "step", "✅ Assistant response saved", {})
-
-        # 7. Post-processing — awaited (Decision 2), reply already computed.
-        await self._post_process(
+        await _emit(on_step, "step", "🔨 Built Phase-3 prompt", {"messages": len(prompt)})
+        return _TurnCtx(
             user_id=user_id,
             companion_id=companion_id,
             companion_name=companion.name if companion else "Maya",
             user_message=content,
+            prompt=prompt,
+            moment_task=moment_task,
+            on_step=on_step,
+        )
+
+    async def _finalize(self, ctx: _TurnCtx, response: str) -> None:
+        """Save the assistant reply, then run post-processing (awaited after the
+        reply is already produced / displayed)."""
+        async with self._sessionmaker() as session:
+            assistant_msg = await self._save_message(
+                session, ctx.companion_id, ctx.user_id, "assistant", response
+            )
+            assistant_msg_id = assistant_msg.id
+            await session.commit()
+        await _emit(ctx.on_step, "step", "✅ Assistant response saved", {})
+
+        moment = await ctx.moment_task  # the real moment, computed in parallel
+        await _emit(ctx.on_step, "step", f"🔍 Moment: {moment.moment_type}", {
+            "moment_type": moment.moment_type,
+            "intensity": moment.emotional_intensity,
+            "priority": moment.character_priority,
+        })
+        await self._post_process(
+            user_id=ctx.user_id,
+            companion_id=ctx.companion_id,
+            companion_name=ctx.companion_name,
+            user_message=ctx.user_message,
             assistant_message=response,
             assistant_msg_id=assistant_msg_id,
             moment=moment,
-            on_step=on_step,
+            on_step=ctx.on_step,
         )
-        await _emit(on_step, "step", "🎉 Message handling complete", {})
-
-        return response
+        await _emit(ctx.on_step, "step", "🎉 Message handling complete", {})
 
     async def _post_process(
         self,

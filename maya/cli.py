@@ -130,8 +130,10 @@ def chat(
                     break
                 if not line:
                     continue
-                reply = await orch.handle_message(uid, cid, line)
-                typer.echo(f"[Maya] {reply}")
+                typer.echo("[Maya] ", nl=False)
+                async for piece in orch.stream_message(uid, cid, line):
+                    typer.echo(piece, nl=False)
+                typer.echo("")
         finally:
             await dispose_engine()
 

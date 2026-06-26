@@ -357,6 +357,7 @@ async def get_index():
         let ws = null;
         let isConnected = false;
         let historyLoading = true;
+        let streamEl = null;  // content div of the in-flight assistant bubble
 
         function connect() {
             const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -402,6 +403,18 @@ async def get_index():
                     messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 } else if (data.type === 'message') {
                     addMessage(data.role, data.content);
+                } else if (data.type === 'message_start') {
+                    streamEl = beginAssistantMessage();
+                } else if (data.type === 'message_chunk') {
+                    if (!streamEl) streamEl = beginAssistantMessage();
+                    streamEl.textContent += data.content;
+                    const m = document.getElementById('messages');
+                    m.scrollTop = m.scrollHeight;
+                } else if (data.type === 'message_end') {
+                    streamEl = null;
+                    const input = document.getElementById('messageInput');
+                    const sendButton = document.getElementById('sendButton');
+                    input.disabled = false; sendButton.disabled = false; input.focus();
                 } else if (data.type === 'debug') {
                     addDebugEntry(data.category, data.label, data.data);
                 }
@@ -439,7 +452,26 @@ async def get_index():
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
             }
         }
-        
+
+        // Create an empty assistant bubble and return its content div so stream
+        // chunks can be appended into it as they arrive.
+        function beginAssistantMessage() {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+            const roleDiv = document.createElement('div');
+            roleDiv.className = 'role';
+            roleDiv.textContent = 'Maya';
+            const contentDiv = document.createElement('div');
+            contentDiv.dir = 'auto';
+            contentDiv.textContent = '';
+            messageDiv.appendChild(roleDiv);
+            messageDiv.appendChild(contentDiv);
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return contentDiv;
+        }
+
         function addDebugEntry(category, label, data) {
             const debugDiv = document.getElementById('debugContent');
             const entryDiv = document.createElement('div');
@@ -489,13 +521,13 @@ async def get_index():
             
             // Clear input
             input.value = '';
-            
-            // Re-enable after a moment
+
+            // Input is re-enabled on 'message_end' (after the reply streams in).
+            // Safety fallback in case the end frame is lost.
             setTimeout(() => {
                 input.disabled = false;
                 sendButton.disabled = false;
-                input.focus();
-            }, 500);
+            }, 60000);
         }
         
         // Enter key to send
@@ -614,21 +646,18 @@ async def websocket_endpoint(websocket: WebSocket):
                 "content": content
             })
 
+            # Stream the assistant reply token-by-token (perceived latency win).
             try:
-                # Single orchestrator path; debug events stream via on_step.
-                response = await orch.handle_message(
+                await websocket.send_json({"type": "message_start", "role": "assistant"})
+                async for piece in orch.stream_message(
                     user_id, companion_id, content, on_step=on_step
-                )
+                ):
+                    await websocket.send_json({"type": "message_chunk", "content": piece})
+                await websocket.send_json({"type": "message_end"})
             except Exception as e:
                 await send_debug(websocket, "error", f"❌ {type(e).__name__}: {e}", {})
+                await websocket.send_json({"type": "message_end"})
                 continue
-
-            # Send assistant response
-            await websocket.send_json({
-                "type": "message",
-                "role": "assistant",
-                "content": response
-            })
 
     except WebSocketDisconnect:
         await send_debug(websocket, "system", "Client disconnected", {})

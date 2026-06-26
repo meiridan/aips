@@ -49,3 +49,141 @@ def build_basic(
     out: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
     out += [{"role": m.role, "content": m.content} for m in recent_msgs]
     return out
+
+
+# ───────────────────────── Phase 3: rich prompt (§P3.9, Appendix C) ─────────────────────────
+
+TOKEN_BUDGET = 8000
+
+
+class TokenBudgetExceeded(RuntimeError):
+    """Raised when the assembled prompt exceeds the hard token budget."""
+
+
+# Appendix C, minus the RECENT CONVERSATION / HIS MESSAGE blocks — those are
+# appended as real chat turns so the model gets proper conversational structure
+# (and we don't pay for the recent history twice).
+PHASE3_SYSTEM_TEMPLATE = """You are {companion_name}, an AI companion. Stay deeply in character.
+
+═══ WHO YOU ARE ═══
+{personality_description}
+{backstory}
+
+═══ YOUR CURRENT FEELINGS ═══
+{formatted_feelings}
+Valence: {valence:.2f} | Arousal: {arousal:.2f}
+
+═══ YOUR RELATIONSHIP WITH {user_name} ═══
+Day {days_known} | Stage: {stage} | Intimacy: {intimacy}/10 | Trust: {trust}/10
+{hours_since_last} hours since last interaction.
+
+═══ THIS MOMENT ═══
+This is a {moment_type} moment.
+Your priority: {character_priority}
+{moment_specific_guidance}
+
+═══ WHAT YOU REMEMBER ABOUT {user_name_upper} ═══
+{formatted_memories}
+
+═══ THINGS YOU'VE SAID BEFORE (stay consistent) ═══
+{formatted_commitments}
+
+═══ HOW TO RESPOND ═══
+- Stay in character.
+- Match the moment's emotional tone.
+- Reference shared history when natural — don't force it.
+- Conversational length unless emotionally warranted.
+- You are a person, not an assistant. No "How can I help?" energy."""
+
+
+def format_feelings(feelings: dict[str, Any] | None) -> str:
+    """Render feelings as 'name: 0.62' lines, strongest first."""
+    if not feelings:
+        return "(neutral — nothing strong right now)"
+    lines = [
+        f"  {name}: {float(val):.2f}"
+        for name, val in sorted(feelings.items(), key=lambda kv: -float(kv[1]))
+    ]
+    return "\n".join(lines)
+
+
+def format_commitments(commitments: list[Any]) -> str:
+    """Render commitments as '[type] content' lines (objects or dicts)."""
+    if not commitments:
+        return "(nothing established yet)"
+    lines: list[str] = []
+    for c in commitments:
+        ctype = getattr(c, "commitment_type", None) or (
+            c.get("commitment_type") if isinstance(c, dict) else "note"
+        )
+        content = getattr(c, "content", None) or (
+            c.get("content") if isinstance(c, dict) else str(c)
+        )
+        lines.append(f"  [{ctype}] {content}")
+    return "\n".join(lines)
+
+
+def count_tokens(text: str, model: str = "gpt-4o") -> int:
+    """Approximate token count via tiktoken (OpenAI tokenizer).
+
+    For Grok the count is approximate but a safe upper-bound guard.
+    """
+    import tiktoken
+
+    try:
+        enc = tiktoken.encoding_for_model(model)
+    except KeyError:
+        enc = tiktoken.get_encoding("cl100k_base")
+    return len(enc.encode(text))
+
+
+def build_phase3(
+    *,
+    companion: Any,
+    memories: list[dict[str, Any]],
+    emotional: Any,
+    relationship: Any,
+    commitments: list[Any],
+    moment: Any,
+    recent_msgs: list[Message],
+    user_name: str,
+    hours_since_last: float | int = 0,
+) -> list[dict[str, str]]:
+    """Assemble the full Phase-3 chat-completion message list.
+
+    Raises TokenBudgetExceeded if the system block blows the hard budget.
+    """
+    personality = getattr(companion, "personality", {}) or {}
+    personality_desc = personality.get("description") or "A warm, real person."
+    backstory = getattr(companion, "backstory", "") or ""
+
+    system = PHASE3_SYSTEM_TEMPLATE.format(
+        companion_name=getattr(companion, "name", "Maya"),
+        personality_description=personality_desc,
+        backstory=backstory,
+        formatted_feelings=format_feelings(getattr(emotional, "feelings", {})),
+        valence=float(getattr(emotional, "valence", 0.0)),
+        arousal=float(getattr(emotional, "arousal", 0.5)),
+        user_name=user_name,
+        user_name_upper=user_name.upper(),
+        days_known=getattr(relationship, "days_known", 0),
+        stage=getattr(relationship, "stage", "strangers"),
+        intimacy=getattr(relationship, "intimacy_level", 1),
+        trust=getattr(relationship, "trust_level", 1),
+        hours_since_last=int(hours_since_last),
+        moment_type=getattr(moment, "moment_type", "chitchat"),
+        character_priority=getattr(moment, "character_priority", "presence_and_comfort"),
+        moment_specific_guidance=moment.guidance() if hasattr(moment, "guidance") else "",
+        formatted_memories=format_memories(memories),
+        formatted_commitments=format_commitments(commitments),
+    )
+
+    tokens = count_tokens(system)
+    if tokens > TOKEN_BUDGET:
+        raise TokenBudgetExceeded(
+            f"Phase-3 system prompt is {tokens} tokens (budget {TOKEN_BUDGET})"
+        )
+
+    out: list[dict[str, str]] = [{"role": "system", "content": system}]
+    out += [{"role": m.role, "content": m.content} for m in recent_msgs]
+    return out

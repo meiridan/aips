@@ -11,7 +11,7 @@ reach Mem0 before the context window slides past it.
 
 from __future__ import annotations
 
-from .scenarios import MemCheck, Scenario, Turn, Variant
+from .scenarios import Scenario, Turn, Variant
 
 
 def _v(vid: str, name: str, turns: list[Turn]) -> Variant:

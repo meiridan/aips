@@ -26,7 +26,7 @@ TIER_MODELS: dict[str, list[str]] = {
         "anthropic/claude-haiku-4-5-20251001",
     ],
     "fast": [
-        "xai/grok-mini",
+        "xai/grok-3-mini",
         "openai/gpt-4o-mini",
     ],
 }

@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import asdict, dataclass, field
-from typing import Any, Awaitable, Callable, Literal
+from typing import Any, Literal
 
-from sqlalchemy import delete as sa_delete, text
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import text
 
 from maya.conversation.orchestrator import Orchestrator
 from maya.db.models import Companion, User
@@ -16,7 +18,7 @@ from maya.db.session import get_sessionmaker
 from maya.logging import configure_logging
 from maya.memory.service import MemoryService
 
-from .scenarios import MemCheck, Scenario, Variant
+from .scenarios import Scenario, Variant
 
 configure_logging("ERROR")
 

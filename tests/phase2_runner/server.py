@@ -5,7 +5,6 @@ Run with: uv run python -m tests.phase2_runner.server
 
 from __future__ import annotations
 
-import asyncio
 import os
 import sys
 from dataclasses import asdict
@@ -16,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from sqlalchemy import delete as sa_delete, select, text
+from sqlalchemy import delete as sa_delete
+from sqlalchemy import select, text
 
 from maya.db.models import User
 from maya.db.session import get_sessionmaker

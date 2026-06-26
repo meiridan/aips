@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
+from datetime import UTC
 
 import typer
 from sqlalchemy import delete, func, select
@@ -20,6 +21,23 @@ from maya.db.session import dispose_engine, get_sessionmaker
 from maya.logging import configure_logging
 
 app = typer.Typer(add_completion=False, help="Maya Core CLI")
+
+
+def _run_with_dispose(factory):
+    """Run an async factory and dispose the engine in the SAME event loop.
+
+    Disposing from a second asyncio.run() loop (the old pattern) attaches the
+    engine's connections to a dead loop and raises "Event loop is closed" /
+    "attached to a different loop" on teardown.
+    """
+
+    async def _main():
+        try:
+            return await factory()
+        finally:
+            await dispose_engine()
+
+    return asyncio.run(_main())
 
 
 def _resolve(opt: str | None, env: str) -> uuid.UUID:
@@ -46,10 +64,15 @@ def seed(
     user_description: str = typer.Option(None, "--user-description"),
     companion_name: str = typer.Option("Maya", "--companion-name"),
     template_id: str = typer.Option("flirt", "--template-id"),
+    genesis: bool = typer.Option(
+        True, "--genesis/--no-genesis", help="Run the genesis LLM call (P3.3)."
+    ),
 ) -> None:
-    """Create a test user + companion."""
+    """Create a test user + companion, then bring the companion to life (genesis)."""
 
-    async def _run() -> tuple[uuid.UUID, uuid.UUID]:
+    async def _run() -> tuple[uuid.UUID, uuid.UUID, str | None]:
+        from maya.companions.genesis import run_genesis
+
         sm = get_sessionmaker()
         async with sm() as session:
             user = User(name=user_name, description=user_description)
@@ -60,15 +83,24 @@ def seed(
             )
             session.add(companion)
             await session.commit()
-            return user.id, companion.id
+            uid, cid = user.id, companion.id
 
-    user_id, companion_id = asyncio.run(_run())
+        first_message = None
+        if genesis:
+            result = await run_genesis(cid, sessionmaker=sm)
+            first_message = result.first_message
+        return uid, cid, first_message
+
+    user_id, companion_id, first_message = _run_with_dispose(_run)
     typer.echo(f"Created user {user_id}  companion {companion_id}")
+    if first_message:
+        typer.echo("")
+        typer.secho(f"[{companion_name}] {first_message}", fg="magenta")
+        typer.echo("")
     typer.echo(
         f"Set as active: export MAYA_USER_ID={user_id} "
         f"MAYA_COMPANION_ID={companion_id}"
     )
-    asyncio.run(dispose_engine())
 
 
 @app.command()
@@ -79,56 +111,139 @@ def chat(
     """Interactive chat REPL."""
     uid = _resolve(user_id, "MAYA_USER_ID")
     cid = _resolve(companion_id, "MAYA_COMPANION_ID")
-    orch = Orchestrator()
 
     typer.echo("[Maya] Hi! I'm Maya. What's on your mind?  (Ctrl-D or 'quit' to exit)")
 
-    async def _turn(text: str) -> str:
-        return await orch.handle_message(uid, cid, text)
+    async def _repl() -> None:
+        # Whole REPL runs in ONE event loop so the shared async engine's
+        # connections stay bound to a single loop (per-turn asyncio.run() left
+        # connections attached to dead loops → teardown crashes).
+        orch = Orchestrator()
+        try:
+            while True:
+                try:
+                    line = (await asyncio.to_thread(input, "> ")).strip()
+                except EOFError:
+                    typer.echo("")
+                    break
+                if line.lower() in {"quit", "exit"}:
+                    break
+                if not line:
+                    continue
+                reply = await orch.handle_message(uid, cid, line)
+                typer.echo(f"[Maya] {reply}")
+        finally:
+            await dispose_engine()
 
-    try:
-        while True:
-            try:
-                line = input("> ").strip()
-            except EOFError:
-                typer.echo("")
-                break
-            if line.lower() in {"quit", "exit"}:
-                break
-            if not line:
-                continue
-            reply = asyncio.run(_turn(line))
-            typer.echo(f"[Maya] {reply}")
-    finally:
-        asyncio.run(dispose_engine())
+    asyncio.run(_repl())
 
 
 @app.command()
 def state(
     companion_id: str = typer.Option(None, "--companion-id"),
+    user_id: str = typer.Option(None, "--user-id"),
 ) -> None:
-    """Dump companion state (grows over phases)."""
+    """Rich Phase-3 snapshot: feelings, stage, intimacy/trust, events, commitments."""
     cid = _resolve(companion_id, "MAYA_COMPANION_ID")
+    uid = _resolve(user_id, "MAYA_USER_ID")
 
-    async def _run() -> tuple[Companion | None, int]:
+    async def _run() -> dict | None:
+        from datetime import datetime
+
+        from sqlalchemy import select as _select
+
+        from maya.companions.commitments import CommitmentService
+        from maya.companions.templates import get_template
+        from maya.db.models import RelationshipEvent
+        from maya.emotional.service import EmotionalService
+        from maya.relationship.service import RelationshipService
+
         sm = get_sessionmaker()
         async with sm() as session:
             comp = await session.get(Companion, cid)
+            if comp is None:
+                return None
             count = await session.scalar(
-                select(func.count())
-                .select_from(Message)
-                .where(Message.companion_id == cid)
+                _select(func.count()).select_from(Message).where(Message.companion_id == cid)
             )
-            return comp, count or 0
+            events = (
+                await session.scalars(
+                    _select(RelationshipEvent)
+                    .where(RelationshipEvent.companion_id == cid)
+                    .order_by(RelationshipEvent.occurred_at.desc())
+                    .limit(5)
+                )
+            ).all()
+            events = [(e.occurred_at, e.event_type, e.summary) for e in events]
 
-    comp, count = asyncio.run(_run())
-    if comp is None:
+        baseline = get_template(comp.template_id).baseline_emotional
+        emo = await EmotionalService(sm).get(cid, baseline=baseline)
+        rel = await RelationshipService(sm).get(cid, uid)
+        commits = await CommitmentService(sm).get_recent(cid, limit=5)
+
+        last_ago = None
+        if rel.last_interaction_at is not None:
+            lia = rel.last_interaction_at
+            if lia.tzinfo is None:
+                lia = lia.replace(tzinfo=UTC)
+            mins = int((datetime.now(UTC) - lia).total_seconds() // 60)
+            last_ago = mins
+
+        return {
+            "name": comp.name,
+            "template": comp.template_id,
+            "count": count or 0,
+            "feelings": emo.feelings,
+            "valence": emo.valence,
+            "arousal": emo.arousal,
+            "stage": rel.stage,
+            "intimacy": rel.intimacy_level,
+            "trust": rel.trust_level,
+            "days": rel.days_known,
+            "interactions": rel.total_interactions,
+            "events": events,
+            "commitments": [(c.commitment_type, c.content, c.importance) for c in commits],
+            "last_ago": last_ago,
+        }
+
+    data = _run_with_dispose(_run)
+    if data is None:
         typer.secho("Companion not found.", fg="red")
         raise typer.Exit(code=1)
-    typer.echo(f"Companion: {comp.name} (template: {comp.template_id})")
-    typer.echo(f"Messages exchanged: {count}")
-    typer.echo("[no emotional/relationship state in Phase 1]")
-    asyncio.run(dispose_engine())
+
+    typer.echo(f"═══ {data['name']} ({data['template']}) ═══")
+    typer.echo(
+        f"Day {data['days']} | Stage: {data['stage']} | "
+        f"{data['interactions']} interactions | {data['count']} messages"
+    )
+    typer.echo("")
+    typer.echo("Current feelings:")
+    if data["feelings"]:
+        for name, val in sorted(data["feelings"].items(), key=lambda kv: -kv[1]):
+            typer.echo(f"  {name}: {val:.2f}")
+    else:
+        typer.echo("  (neutral)")
+    typer.echo(f"Valence: {data['valence']:.2f} | Arousal: {data['arousal']:.2f}")
+    typer.echo("")
+    typer.echo(f"Intimacy: {data['intimacy']}/10 | Trust: {data['trust']}/10")
+    typer.echo("")
+    typer.echo("Recent significant events:")
+    if data["events"]:
+        for occurred, etype, summary in data["events"]:
+            day = str(occurred)[:10]
+            typer.echo(f"  - {day}: {etype} (\"{summary}\")")
+    else:
+        typer.echo("  (none yet)")
+    typer.echo("")
+    typer.echo("Active commitments (5 most important):")
+    if data["commitments"]:
+        for ctype, content, imp in data["commitments"]:
+            typer.echo(f"  [{ctype}] {content} (importance: {imp:.2f})")
+    else:
+        typer.echo("  (none yet)")
+    if data["last_ago"] is not None:
+        typer.echo("")
+        typer.echo(f"Last interaction: {data['last_ago']} minutes ago")
 
 
 @app.command()
@@ -152,11 +267,10 @@ def history(
             rows.reverse()
             return rows
 
-    rows = asyncio.run(_run())
+    rows = _run_with_dispose(_run)
     for m in rows:
         who = "You" if m.role == "user" else ("Maya" if m.role == "assistant" else m.role)
         typer.echo(f"[{who}] {m.content}")
-    asyncio.run(dispose_engine())
 
 
 @app.command()
@@ -190,14 +304,13 @@ def reset(
             deleted_mem = await svc.delete_all(uid, cid)
         return deleted_msgs, deleted_mem
 
-    deleted_msgs, deleted_mem = asyncio.run(_run())
+    deleted_msgs, deleted_mem = _run_with_dispose(_run)
     if not memory_only:
         typer.echo(f"Deleted {deleted_msgs} messages.")
     if memory or memory_only:
         typer.echo(
             f"Wiped memory store for this user/companion (status: {deleted_mem})."
         )
-    asyncio.run(dispose_engine())
 
 
 memory_app = typer.Typer(help="Inspect long-term memory.")
@@ -218,13 +331,12 @@ def memory_list(
 
         return await MemoryService().get_all(uid, cid)
 
-    items = asyncio.run(_run())
+    items = _run_with_dispose(_run)
     if not items:
         typer.echo("(no memories yet)")
     for m in items:
         short_id = str(m["id"])[:8]
         typer.echo(f"[{short_id}] {m['text']}")
-    asyncio.run(dispose_engine())
 
 
 @memory_app.command("delete")
@@ -242,7 +354,7 @@ def memory_delete(
 
         return await MemoryService().delete_by_id(memory_id, uid, cid)
 
-    deleted = asyncio.run(_run())
+    deleted = _run_with_dispose(_run)
     if deleted == 0:
         typer.secho(f"No memory matched id '{memory_id}'.", fg="yellow")
     elif deleted == 1:
@@ -252,7 +364,6 @@ def memory_delete(
             f"Deleted {deleted} memories — prefix '{memory_id}' was ambiguous.",
             fg="yellow",
         )
-    asyncio.run(dispose_engine())
 
 
 @memory_app.command("search")
@@ -271,14 +382,13 @@ def memory_search(
 
         return await MemoryService().search_relevant(query, uid, cid, limit)
 
-    items = asyncio.run(_run())
+    items = _run_with_dispose(_run)
     if not items:
         typer.echo("(no matches)")
     for i, m in enumerate(items, 1):
         score = m.get("score")
         score_str = f" (score: {score:.2f})" if isinstance(score, (int, float)) else ""
         typer.echo(f"[{i}] {m['text']}{score_str}")
-    asyncio.run(dispose_engine())
 
 
 @app.command()
@@ -332,7 +442,7 @@ def costs(
                 "by_purpose": [(r[0] or "(none)", float(r[1]), r[2]) for r in by_purpose_rows],
             }
 
-    data = asyncio.run(_run())
+    data = _run_with_dispose(_run)
     typer.echo(f"Total (last {last}): ${data['total']:.4f}")
     if data["by_tier"]:
         typer.echo("By tier:")
@@ -342,7 +452,6 @@ def costs(
         typer.echo("By purpose:")
         for purpose, cost, n in data["by_purpose"]:
             typer.echo(f"  {purpose}: ${cost:.4f}  ({n} calls)")
-    asyncio.run(dispose_engine())
 
 
 @app.command()
@@ -352,6 +461,7 @@ def web(
 ) -> None:
     """Start the web UI server."""
     import uvicorn
+
     from maya.web import app as web_app
     
     typer.echo(f"🚀 Starting Maya Web UI on http://{host}:{port}")

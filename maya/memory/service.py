@@ -55,10 +55,23 @@ class MemoryService:
         llm: LLMService | None = None,
         sessionmaker: Any = None,
         client: Memory | None = None,
+        companion_name: str | None = None,
+        user_name: str | None = None,
+        relationship_stage: str = "getting to know each other",
+        days_known: int = 0,
     ):
         self.llm = llm
         self._sessionmaker = sessionmaker or get_sessionmaker()
-        self._client = client or Memory.from_config(build_mem0_config())
+        # When companion/user context is given, Mem0 uses the Phase-3
+        # companion-aware extraction prompt (Appendix A); otherwise the default.
+        self._client = client or Memory.from_config(
+            build_mem0_config(
+                companion_name=companion_name,
+                user_name=user_name,
+                relationship_stage=relationship_stage,
+                days_known=days_known,
+            )
+        )
 
     # ── Public async API ─────────────────────────────────────────────────
 

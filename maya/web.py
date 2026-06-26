@@ -2,21 +2,26 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
-import uuid
-from datetime import datetime
-from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 
 from maya.config import get_settings
-from maya.conversation.orchestrator import MEMORY_LIMIT, RECENT_LIMIT, Orchestrator
+from maya.conversation.orchestrator import (
+    MEMORY_LIMIT,
+    RECENT_LIMIT,
+    Orchestrator,
+)
 from maya.db.models import Companion, Message, User
 from maya.db.session import get_sessionmaker
 from maya.logging import configure_logging
+
+# Re-exported so callers/tests can confirm the web path uses the shared
+# orchestrator constants instead of hardcoded context limits (regression guard
+# for the old 3/10 duplication bug — now structurally impossible after the
+# single-orchestrator refactor).
+__all__ = ["app", "MEMORY_LIMIT", "RECENT_LIMIT"]
 
 app = FastAPI(title="Maya Web UI")
 
@@ -586,7 +591,11 @@ async def websocket_endpoint(websocket: WebSocket):
 
     await websocket.send_json({"type": "history_end"})
 
-    orch = DebugOrchestrator(websocket)
+    orch = Orchestrator()
+
+    async def on_step(category: str, label: str, data: dict) -> None:
+        # The orchestrator emits its own "received" step; skip the echo here.
+        await send_debug(websocket, category, label, data)
 
     try:
         while True:
@@ -594,24 +603,22 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             message_data = json.loads(data)
             content = message_data.get("content", "").strip()
-            
+
             if not content:
                 continue
-            
+
             # Echo user message
             await websocket.send_json({
                 "type": "message",
                 "role": "user",
                 "content": content
             })
-            
-            await send_debug(websocket, "step", "📥 Received user message", {
-                "content": content[:100] + ("..." if len(content) > 100 else "")
-            })
 
             try:
-                # Process message with debug info
-                response = await orch.handle_message(user_id, companion_id, content)
+                # Single orchestrator path; debug events stream via on_step.
+                response = await orch.handle_message(
+                    user_id, companion_id, content, on_step=on_step
+                )
             except Exception as e:
                 await send_debug(websocket, "error", f"❌ {type(e).__name__}: {e}", {})
                 continue
@@ -622,7 +629,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "role": "assistant",
                 "content": response
             })
-            
+
     except WebSocketDisconnect:
         await send_debug(websocket, "system", "Client disconnected", {})
 
@@ -638,144 +645,6 @@ async def send_debug(websocket: WebSocket, category: str, label: str, data: dict
         })
     except Exception:
         pass  # Client might have disconnected
-
-
-class DebugOrchestrator(Orchestrator):
-    """Orchestrator with debug output."""
-    
-    def __init__(self, websocket: WebSocket):
-        super().__init__()
-        self.websocket = websocket
-    
-    async def handle_message(
-        self,
-        user_id: uuid.UUID,
-        companion_id: uuid.UUID,
-        content: str,
-    ) -> str:
-        """Handle message with debug output at each step."""
-        import asyncio as _asyncio
-        import time
-        
-        async with self._sessionmaker() as session:
-            # Step 1: Save user message
-            await send_debug(self.websocket, "step", "💾 Saving user message to database", {
-                "user_id": str(user_id),
-                "companion_id": str(companion_id)
-            })
-            
-            await self._save_message(session, companion_id, user_id, "user", content)
-            await session.commit()
-            
-            await send_debug(self.websocket, "step", "✅ User message saved", {})
-            
-            # Step 2a: Search memory (with timing for latency visibility)
-            await send_debug(self.websocket, "memory", "🧠 Searching long-term memory (semantic / pgvector)", {
-                "query": content[:80]
-            })
-
-            _mem_start = time.time()
-            memories_task = self.memory.search_relevant(
-                query=content, user_id=user_id, companion_id=companion_id, limit=MEMORY_LIMIT
-            )
-            recent_task = self._recent_messages(session, companion_id, RECENT_LIMIT)
-            memories, recent = await _asyncio.gather(memories_task, recent_task)
-            _mem_latency_ms = int((time.time() - _mem_start) * 1000)
-
-            await send_debug(self.websocket, "memory", f"✅ Retrieved {len(memories)} memories ({_mem_latency_ms}ms)", {
-                "search_latency_ms": _mem_latency_ms,
-                "memories": [
-                    {
-                        "text": m["text"],
-                        "score": round(m.get("score"), 3) if isinstance(m.get("score"), (int, float)) else None,
-                    }
-                    for m in memories
-                ] if memories else "(no memories yet)"
-            })
-            
-            # Step 2b: Get recent messages
-            await send_debug(self.websocket, "step", f"📚 Retrieved last {len(recent)} messages", {
-                "message_count": len(recent),
-                "preview": [
-                    {"role": m.role, "content": m.content[:60] + ("..." if len(m.content) > 60 else "")}
-                    for m in recent[-5:]
-                ]
-            })
-            
-            # Step 3: Build prompt
-            from maya.conversation.prompt_builder import (
-                SYSTEM_PROMPT_TEMPLATE,
-                format_memories,
-            )
-            system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
-                memories=format_memories(memories)
-            )
-            
-            await send_debug(self.websocket, "step", "🔨 Built prompt with memories injected", {
-                "system_prompt_preview": system_prompt[:300] + ("..." if len(system_prompt) > 300 else ""),
-                "context_messages": len(recent),
-                "memories_in_context": len(memories)
-            })
-            
-            prompt = [{"role": "system", "content": system_prompt}]
-            prompt += [{"role": m.role, "content": m.content} for m in recent]
-            
-            # Step 4: Call LLM
-            await send_debug(self.websocket, "llm", "🤖 Calling LLM (Grok-3)", {
-                "model_tier": "main",
-                "total_messages": len(prompt)
-            })
-            
-            start = time.time()
-            
-            try:
-                response = await self.llm.chat(prompt, model_tier="main")
-                elapsed = time.time() - start
-                
-                await send_debug(self.websocket, "llm", "✅ LLM response received", {
-                    "latency_ms": int(elapsed * 1000),
-                    "response_preview": response[:120] + ("..." if len(response) > 120 else "")
-                })
-            except Exception as e:
-                await send_debug(self.websocket, "error", "❌ LLM call failed", {
-                    "error": str(e)
-                })
-                raise
-            
-            # Step 5: Save assistant message
-            await self._save_message(
-                session, companion_id, user_id, "assistant", response
-            )
-            await session.commit()
-            
-            await send_debug(self.websocket, "step", "✅ Assistant response saved", {})
-        
-        # Step 6: Extract memories — awaited so facts persist before next turn
-        await send_debug(self.websocket, "memory", "🔍 Extracting facts from this exchange", {
-            "user_message": content[:80],
-            "assistant_message": response[:80]
-        })
-        try:
-            facts = await self.memory.extract_and_store(
-                user_id=user_id,
-                companion_id=companion_id,
-                user_message=content,
-                assistant_message=response,
-            )
-            if facts:
-                await send_debug(self.websocket, "memory", f"💡 Extracted {len(facts)} new fact(s)", {
-                    "new_facts": facts
-                })
-            else:
-                await send_debug(self.websocket, "memory", "💡 No new facts to remember", {})
-        except Exception as e:
-            await send_debug(self.websocket, "error", "❌ Memory extraction failed", {
-                "error": str(e)
-            })
-
-        await send_debug(self.websocket, "step", "🎉 Message handling complete", {})
-        
-        return response
 
 
 if __name__ == "__main__":

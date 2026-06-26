@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Maya — Phase 3 High-Level Breakdown</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: #1a1a2e; line-height: 1.5; font-size: 11pt; margin: 0;
+  }
+  h1 { font-size: 23pt; margin: 0 0 2px; color: #2d1b4e; letter-spacing: -0.5px; }
+  .sub { color: #6b6b8a; font-size: 10.5pt; margin: 0 0 18px; }
+  h2 {
+    font-size: 14pt; margin: 22px 0 8px; color: #fff;
+    background: linear-gradient(90deg,#6a4c93,#9d6bbd);
+    padding: 7px 12px; border-radius: 6px; page-break-after: avoid;
+  }
+  h3 { font-size: 11.5pt; margin: 14px 0 4px; color: #2d1b4e; page-break-after: avoid; }
+  p { margin: 5px 0; }
+  .goal { font-style: italic; color: #4a4a6a; margin: 2px 0 8px; }
+  ul { margin: 4px 0 8px; padding-left: 20px; }
+  li { margin: 2px 0; }
+  code {
+    background: #f0ecf7; padding: 1px 5px; border-radius: 3px;
+    font-family: "SF Mono", Menlo, monospace; font-size: 9.5pt; color: #5a2d82;
+  }
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
+  .tag {
+    font-size: 8.5pt; font-weight: 600; padding: 2px 9px; border-radius: 11px;
+    letter-spacing: 0.3px;
+  }
+  .risk-low { background: #d4f4dd; color: #1d6b38; }
+  .risk-med { background: #fff0cc; color: #946200; }
+  .risk-high { background: #ffd9d9; color: #a32020; }
+  .llm-no  { background: #e0e7ff; color: #3a3a9e; }
+  .llm-yes { background: #f3d9ff; color: #7a2d9e; }
+  .card {
+    border: 1px solid #e3dcf0; border-radius: 8px; padding: 4px 16px 12px;
+    margin: 0 0 14px; page-break-inside: avoid;
+  }
+  .deps { font-size: 9.5pt; color: #6b6b8a; margin: 6px 0 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.5pt; }
+  th, td { border: 1px solid #d8d0e8; padding: 5px 8px; text-align: left; }
+  th { background: #ede6f7; color: #2d1b4e; }
+  .gate { background: #faf7ff; border-left: 4px solid #9d6bbd; padding: 10px 14px; border-radius: 0 6px 6px 0; }
+  .flow { font-family: "SF Mono", Menlo, monospace; font-size: 9pt; color: #5a2d82; text-align:center; margin: 10px 0 18px; }
+  .footer { margin-top: 24px; font-size: 8.5pt; color: #9090aa; border-top: 1px solid #e3dcf0; padding-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Maya — Phase 3 Breakdown</h1>
+<p class="sub">"Feelings, an evolving relationship, and self-consistency. The moat."<br>
+6 dependency-ordered sub-phases · deterministic work front-loaded · LLM risk isolated &amp; incremental</p>
+
+<div class="flow">3a Schema → 3b Engines → 3c Genesis → 3d Moment+Prompt → 3e Orchestrator → 3f Memory+Gate</div>
+
+<!-- 3a -->
+<h2>3a · Schema &amp; State Models</h2>
+<div class="card">
+<p class="goal">Goal: the entire Phase-3 data layer exists and round-trips. No behavior change yet.</p>
+<div class="meta"><span class="tag risk-low">RISK: LOW</span><span class="tag llm-no">NO LLM</span></div>
+<h3>Build</h3>
+<ul>
+  <li><strong>P3.1</strong> Alembic migration <code>0004_phase3_state.py</code> — tables: <code>emotional_state</code>, <code>relationship_state</code>, <code>relationship_events</code>, <code>companion_commitments</code>; + <code>companions.personality</code> (JSONB), <code>companions.backstory</code> (TEXT)</li>
+  <li><strong>models.py</strong> — 4 new SQLAlchemy models + Companion field additions (match existing 2.0 mapped_column style)</li>
+  <li><strong>P3.2</strong> <code>maya/companions/templates.py</code> — 3 templates (flirt / devoted / best_friend)</li>
+</ul>
+<h3>Tests</h3>
+<ul><li>migration up/down clean; model insert+read round-trip; template load</li></ul>
+<p class="deps">Depends on: nothing. Foundation for all later sub-phases.</p>
+</div>
+
+<!-- 3b -->
+<h2>3b · Emotional &amp; Relationship Engines</h2>
+<div class="card">
+<p class="goal">Goal: deterministic state logic — decay + stage transitions + commitments CRUD — fully unit-tested, visible via CLI.</p>
+<div class="meta"><span class="tag risk-low">RISK: LOW–MED</span><span class="tag llm-no">NO LLM</span></div>
+<h3>Build</h3>
+<ul>
+  <li><strong>P3.4</strong> <code>maya/emotional/service.py</code> + <code>constants.py</code> (feeling half-lives, <code>decay_feeling()</code>). <strong>Lazy decay on read</strong> — computed from hours-since-<code>last_updated</code>, no scheduler.</li>
+  <li><strong>P3.5</strong> <code>maya/relationship/service.py</code> + <code>transitions.py</code> — full Appendix G table + predicates (<code>has_event</code>, <code>has_recent_event</code>, <code>days_since_last</code>…)</li>
+  <li><strong>P3.6</strong> <code>maya/companions/commitments.py</code> — CRUD only (<code>add</code>, <code>get_recent</code>); LLM extraction deferred to 3e</li>
+  <li><strong>P3.11</strong> Upgrade <code>maya state</code> CLI — show feelings, stage, intimacy/trust, events, commitments</li>
+</ul>
+<h3>Tests</h3>
+<ul><li>decay math (1.0→0.5 after one half-life); every stage transition with mock state; commitment CRUD</li></ul>
+<p class="deps">Depends on: 3a (tables + models).</p>
+</div>
+
+<!-- 3c -->
+<h2>3c · Genesis — Companion Birth</h2>
+<div class="card">
+<p class="goal">Goal: every seeded companion gets a unique backstory, initial feelings, seed commitments, and a real first message.</p>
+<div class="meta"><span class="tag risk-med">RISK: MEDIUM</span><span class="tag llm-yes">LLM (one-shot)</span></div>
+<h3>Build</h3>
+<ul>
+  <li><strong>P3.3</strong> <code>maya/companions/genesis.py</code> — Appendix E prompt → <code>GenesisResult</code>; uses <code>main</code> tier (personality matters)</li>
+  <li><code>run_genesis()</code> writes backstory, inits emotional + relationship state, saves seed commitments, seeds Mem0 identity, saves opening assistant message</li>
+  <li>Wire into <code>maya seed</code> CLI</li>
+</ul>
+<h3>Tests</h3>
+<ul><li>genesis returns valid structure (mocked LLM); seed runs genesis end-to-end against test DB</li></ul>
+<p class="deps">Depends on: 3a (templates), 3b (emotional/relationship/commitments services), existing MemoryService.</p>
+</div>
+
+<!-- 3d -->
+<h2>3d · Moment Analysis &amp; Rich Prompt</h2>
+<div class="card">
+<p class="goal">Goal: classify each moment and assemble the full Phase-3 prompt — built and tested in isolation, not yet in the live loop.</p>
+<div class="meta"><span class="tag risk-med">RISK: MEDIUM</span><span class="tag llm-yes">LLM (fast tier)</span></div>
+<h3>Build</h3>
+<ul>
+  <li><strong>P3.7</strong> <code>maya/conversation/moment_analyzer.py</code> — Appendix B, <code>fast</code> tier, &lt;500ms; invalid JSON/timeout → default <code>chitchat</code> (never blocks)</li>
+  <li><strong>P3.9</strong> Rich <code>prompt_builder.py</code> — Appendix C template + Appendix H moment guidance; identity / feelings / relationship / moment / memories / commitments / recent / message blocks</li>
+  <li><code>count_tokens()</code> via <code>tiktoken</code> — fail loud if &gt; 8000 tokens (new dep)</li>
+</ul>
+<h3>Tests</h3>
+<ul><li>moment analyzer parse + fallback path; prompt assembly snapshot; token-budget guard trips</li></ul>
+<p class="deps">Depends on: 3b (emotional/relationship DTOs), 3a (commitments model).</p>
+</div>
+
+<!-- 3e -->
+<h2>3e · Orchestrator Integration</h2>
+<div class="card">
+<p class="goal">Goal: wire everything into the live chat loop — the behavioral leap. Highest-risk sub-phase.</p>
+<div class="meta"><span class="tag risk-high">RISK: HIGH</span><span class="tag llm-yes">LLM (multi-call)</span></div>
+<h3>Build</h3>
+<ul>
+  <li><strong>P3.10</strong> Upgrade <code>Orchestrator.handle_message</code> — parallel context gather (memory, emotional, relationship, commitments, recent), moment analysis, rich prompt, main LLM call</li>
+  <li><strong>Post-processing</strong> (awaited <em>after</em> reply sent): Mem0 extract, emotional update, relationship increment, <strong>P3.6</strong> LLM commitment extraction, event logging, stage-transition eval</li>
+  <li><strong>DebugOrchestrator refactor</strong> — orchestrator emits step events via optional callback; web debug panel subscribes. <em>One</em> code path — kills the 3/10 duplication bug class.</li>
+</ul>
+<h3>Tests</h3>
+<ul><li>full <code>handle_message</code> with mocked LLM; post-processing applies all state updates; debug callback fires expected events</li></ul>
+<p class="deps">Depends on: 3b, 3c, 3d (everything converges here).</p>
+</div>
+
+<!-- 3f -->
+<h2>3f · Memory Quality &amp; Gate</h2>
+<div class="card">
+<p class="goal">Goal: richer memories + full Phase-3 gate verification. Ship-readiness.</p>
+<div class="meta"><span class="tag risk-low">RISK: LOW–MED</span><span class="tag llm-yes">LLM (config)</span></div>
+<h3>Build</h3>
+<ul>
+  <li><strong>P3.8</strong> <code>maya/memory/prompts.py</code> — Appendix A companion-aware extraction prompt; inject into <code>build_mem0_config</code> (<code>custom_fact_extraction_prompt</code>, <code>custom_update_memory_prompt</code>)</li>
+  <li>Run full P3 gate (below) + cost check</li>
+</ul>
+<h3>Tests / Gate</h3>
+<ul><li>qualitative memory richness check; all gate items below pass</li></ul>
+<p class="deps">Depends on: 3e (live loop) for end-to-end validation.</p>
+</div>
+
+<h2>Phase 3 Exit Gate</h2>
+<div class="gate">
+<table>
+<tr><th>Gate item</th><th>Verified in</th></tr>
+<tr><td><code>maya seed</code> produces unique backstory + first message</td><td>3c</td></tr>
+<tr><td>Emotional state changes between calm vs high-intensity exchanges</td><td>3e</td></tr>
+<tr><td>Relationship stage transitions correctly (tested)</td><td>3b (logic) · 3e (live)</td></tr>
+<tr><td>After 24h test-clock, feelings have decayed</td><td>3b</td></tr>
+<tr><td>No self-contradiction across 20-message identity conversation</td><td>3e + 3f</td></tr>
+<tr><td><code>maya state</code> shows rich, accurate snapshot</td><td>3b (built) · 3e (populated)</td></tr>
+<tr><td>Custom Mem0 prompts richer than defaults (qualitative)</td><td>3f</td></tr>
+<tr><td>All Phase 1 + Phase 2 tests still pass</td><td>every sub-phase (regression)</td></tr>
+<tr><td>LLM cost per turn average &lt; $0.10</td><td>3f</td></tr>
+</table>
+</div>
+
+<h2>Why This Slicing</h2>
+<ul>
+  <li><strong>Risk front-loading</strong> — 3a/3b are pure deterministic, fully unit-testable, zero LLM cost. Confidence built before any model is called.</li>
+  <li><strong>Incremental LLM exposure</strong> — one-shot genesis (3c) → isolated prompt/analysis (3d) → full loop (3e). Each LLM surface validated before the next stacks on it.</li>
+  <li><strong>Duplication killed once</strong> — the DebugOrchestrator refactor lands exactly where the orchestration grows complex (3e), not before.</li>
+  <li><strong>Every P3.x sub-part mapped exactly once</strong> — P3.1→3a, P3.2→3a, P3.3→3c, P3.4→3b, P3.5→3b, P3.6→3b+3e, P3.7→3d, P3.8→3f, P3.9→3d, P3.10→3e, P3.11→3b.</li>
+</ul>
+
+<div class="footer">Maya Core · Phase 3 high-level breakdown · derived from MAYA_CORE_SPEC.md §P3.1–P3.11 + Appendices A,B,C,E,G,H</div>
+
+</body>
+</html>

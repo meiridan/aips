@@ -69,10 +69,20 @@ class MemoryService:
         user_message: str,
         assistant_message: str,
     ) -> list[str]:
-        """Send a turn to Mem0; it extracts + dedupes + stores facts."""
+        """Extract + dedupe + store facts **about the user** from this turn.
+
+        Only the user's own message is sent to Mem0. The assistant (companion)
+        message is deliberately excluded: Maya role-plays a persona and discloses
+        invented self-facts ("I'm 45, divorced, 3 kids…"). Sending those under the
+        user's memory scope made Mem0 attribute Maya's biography to the user —
+        e.g. her children's names showing up as the user's. The companion's own
+        self-consistency is a separate store (Phase 3 commitments), not user memory.
+
+        `assistant_message` is kept in the signature for callers/back-compat but
+        is intentionally not extracted.
+        """
         messages = [
             {"role": "user", "content": user_message},
-            {"role": "assistant", "content": assistant_message},
         ]
         try:
             result = await asyncio.to_thread(
@@ -190,4 +200,35 @@ class MemoryService:
             return 1
         except Exception as exc:  # noqa: BLE001
             log.error("memory_delete_error", error=str(exc))
+            return 0
+
+    async def delete_by_id(
+        self,
+        memory_id: str,
+        user_id: uuid.UUID,
+        companion_id: uuid.UUID,
+    ) -> int:
+        """Delete a single memory by id, scoped to (user, companion) for safety.
+
+        Accepts a full id or a unique id prefix. Returns the number of rows
+        deleted (0 if no match, >1 only if an ambiguous prefix matched several).
+        """
+        try:
+            sql = text(
+                f"""
+                DELETE FROM {_COLLECTION}
+                WHERE id::text LIKE :idp
+                  AND payload->>'user_id'  = :uid
+                  AND payload->>'agent_id' = :aid
+                """
+            )
+            async with self._sessionmaker() as session:
+                result = await session.execute(
+                    sql,
+                    {"idp": f"{memory_id}%", "uid": str(user_id), "aid": str(companion_id)},
+                )
+                await session.commit()
+                return result.rowcount or 0
+        except Exception as exc:  # noqa: BLE001
+            log.error("memory_delete_by_id_error", error=str(exc))
             return 0

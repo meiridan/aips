@@ -221,8 +221,37 @@ def memory_list(
     items = asyncio.run(_run())
     if not items:
         typer.echo("(no memories yet)")
-    for i, m in enumerate(items, 1):
-        typer.echo(f"[{i}] {m['text']}")
+    for m in items:
+        short_id = str(m["id"])[:8]
+        typer.echo(f"[{short_id}] {m['text']}")
+    asyncio.run(dispose_engine())
+
+
+@memory_app.command("delete")
+def memory_delete(
+    memory_id: str = typer.Argument(..., help="Memory id (or unique prefix) from `memory list`."),
+    user_id: str = typer.Option(None, "--user-id"),
+    companion_id: str = typer.Option(None, "--companion-id"),
+) -> None:
+    """Delete a single memory by id (scoped to the active user/companion)."""
+    uid = _resolve(user_id, "MAYA_USER_ID")
+    cid = _resolve(companion_id, "MAYA_COMPANION_ID")
+
+    async def _run() -> int:
+        from maya.memory.service import MemoryService
+
+        return await MemoryService().delete_by_id(memory_id, uid, cid)
+
+    deleted = asyncio.run(_run())
+    if deleted == 0:
+        typer.secho(f"No memory matched id '{memory_id}'.", fg="yellow")
+    elif deleted == 1:
+        typer.secho(f"Deleted 1 memory ({memory_id}).", fg="green")
+    else:
+        typer.secho(
+            f"Deleted {deleted} memories — prefix '{memory_id}' was ambiguous.",
+            fg="yellow",
+        )
     asyncio.run(dispose_engine())
 
 

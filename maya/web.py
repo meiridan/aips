@@ -647,16 +647,27 @@ async def websocket_endpoint(websocket: WebSocket):
             })
 
             # Stream the assistant reply token-by-token (perceived latency win).
+            # message_end is sent the moment the reply finishes streaming —
+            # BEFORE post-processing — so the input re-enables immediately and
+            # bookkeeping runs in the background of the turn.
+            ended = {"sent": False}
+
+            async def send_end(_ended=ended) -> None:
+                if not _ended["sent"]:
+                    _ended["sent"] = True
+                    await websocket.send_json({"type": "message_end"})
+
             try:
                 await websocket.send_json({"type": "message_start", "role": "assistant"})
                 async for piece in orch.stream_message(
-                    user_id, companion_id, content, on_step=on_step
+                    user_id, companion_id, content,
+                    on_step=on_step, on_reply_done=lambda _r: send_end(),
                 ):
                     await websocket.send_json({"type": "message_chunk", "content": piece})
-                await websocket.send_json({"type": "message_end"})
+                await send_end()
             except Exception as e:
                 await send_debug(websocket, "error", f"❌ {type(e).__name__}: {e}", {})
-                await websocket.send_json({"type": "message_end"})
+                await send_end()
                 continue
 
     except WebSocketDisconnect:

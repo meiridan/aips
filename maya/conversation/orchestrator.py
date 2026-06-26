@@ -128,12 +128,15 @@ class Orchestrator:
         companion_id: uuid.UUID,
         content: str,
         on_step: StepCallback | None = None,
+        on_reply_done: Callable[[str], Awaitable[None] | None] | None = None,
     ) -> AsyncIterator[str]:
         """Streaming turn: yields reply chunks as they arrive (web UI).
 
-        Post-processing runs AFTER the last chunk is yielded — the reply is on
-        screen before any bookkeeping, and bookkeeping is still awaited before
-        the generator returns (Decision 2: no loss on disconnect).
+        `on_reply_done` (if given) is invoked the instant the last chunk is
+        yielded — BEFORE post-processing — so the UI can re-enable input and
+        mark the reply complete without waiting on bookkeeping. Post-processing
+        then runs and is still awaited before the generator returns (Decision 2:
+        no loss on disconnect).
         """
         ctx = await self._prepare(user_id, companion_id, content, on_step)
         await _emit(on_step, "llm", "🤖 Streaming LLM (main tier)", {"messages": len(ctx.prompt)})
@@ -143,6 +146,13 @@ class Orchestrator:
             yield piece
         response = "".join(chunks)
         await _emit(on_step, "llm", "✅ Stream complete", {"chars": len(response)})
+
+        # Signal reply-complete to the caller before bookkeeping runs.
+        if on_reply_done is not None:
+            res = on_reply_done(response)
+            if inspect.isawaitable(res):
+                await res
+
         await self._finalize(ctx, response)
 
     async def _prepare(

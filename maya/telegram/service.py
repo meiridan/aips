@@ -1,21 +1,17 @@
 """Telegram → orchestrator bridge.
 
-Maps a Telegram chat to a private (User, Companion) pair and routes inbound
-text through the shared Orchestrator, exactly like the CLI/web channels. New
-chats are brought to life with genesis on first contact.
+Single-user app: every Telegram chat talks to the ONE shared Maya (same
+companion + memory as the web UI). The chat_id is used only to address replies,
+not to pick an identity. See maya.companions.singleton.
 """
 
 from __future__ import annotations
 
-import uuid
-
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from maya.companions.genesis import run_genesis
+from maya.companions.singleton import resolve_singleton
 from maya.config import get_settings
 from maya.conversation.orchestrator import Orchestrator
-from maya.db.models import Companion, User
 from maya.db.session import get_sessionmaker
 from maya.logging import get_logger
 from maya.telegram.client import TelegramClient
@@ -36,61 +32,6 @@ class TelegramService:
         # keeps the async engine's connections bound to one loop.
         self.orchestrator = orchestrator or Orchestrator()
 
-    async def get_or_create_for_chat(
-        self,
-        chat_id: int,
-        first_name: str | None = None,
-        username: str | None = None,
-    ) -> tuple[uuid.UUID, uuid.UUID, bool, str | None]:
-        """Return (user_id, companion_id, created, first_message).
-
-        `created` is True only when this chat had no user yet; in that case the
-        companion has been run through genesis and `first_message` is its opener.
-        """
-        sm = self._sessionmaker
-        async with sm() as session:
-            user = (
-                await session.execute(
-                    select(User).where(User.telegram_chat_id == chat_id)
-                )
-            ).scalar_one_or_none()
-
-            if user is not None:
-                companion = (
-                    await session.execute(
-                        select(Companion)
-                        .where(Companion.user_id == user.id)
-                        .limit(1)
-                    )
-                ).scalar_one_or_none()
-                if companion is not None:
-                    return user.id, companion.id, False, None
-                # User without a companion (unexpected) — create one below.
-                companion = Companion(user_id=user.id, name="Maya", template_id="flirt")
-                session.add(companion)
-                await session.commit()
-                companion_id = companion.id
-            else:
-                name = first_name or username or f"tg-{chat_id}"
-                user = User(
-                    name=name,
-                    description=f"Telegram user @{username}" if username else None,
-                    telegram_chat_id=chat_id,
-                )
-                session.add(user)
-                await session.flush()
-                companion = Companion(user_id=user.id, name="Maya", template_id="flirt")
-                session.add(companion)
-                await session.commit()
-                user_id, companion_id = user.id, companion.id
-                # Bring the companion to life. Genesis persists the opener as the
-                # first assistant message; we surface its text to send back.
-                result = await run_genesis(companion_id, sessionmaker=sm)
-                log.info("telegram_user_created", chat_id=chat_id, user_id=str(user_id))
-                return user_id, companion_id, True, result.first_message
-
-            return user.id, companion_id, False, None
-
     async def handle_update(self, update: dict) -> None:
         """Process a single Telegram update. Non-text/non-message updates ignored."""
         message = update.get("message")
@@ -102,12 +43,8 @@ class TelegramService:
         if chat_id is None or not isinstance(text, str) or not text.strip():
             return
 
-        sender = message.get("from") or {}
-        uid, cid, created, first_message = await self.get_or_create_for_chat(
-            int(chat_id),
-            first_name=sender.get("first_name"),
-            username=sender.get("username"),
-        )
+        # Single shared Maya — same companion as the web UI.
+        uid, cid, created, first_message = await resolve_singleton(self._sessionmaker)
 
         if created and first_message:
             await self.client.send_message(int(chat_id), first_message)
@@ -115,7 +52,7 @@ class TelegramService:
         if text.strip() == "/start":
             if not created:
                 await self.client.send_message(int(chat_id), "Hey — I'm here. What's on your mind?")
-            return  # greeting already covers a brand-new chat
+            return  # greeting already covers a brand-new companion
 
         await self.client.send_chat_action(int(chat_id), "typing")
         try:

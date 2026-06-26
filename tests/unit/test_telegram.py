@@ -105,10 +105,12 @@ async def test_handle_update_ignores_non_text():
 
 
 @pytest.mark.asyncio
-async def test_handle_update_routes_text_to_orchestrator():
+async def test_handle_update_routes_text_to_orchestrator(monkeypatch):
     svc = _make_service()
     uid, cid = uuid.uuid4(), uuid.uuid4()
-    svc.get_or_create_for_chat = AsyncMock(return_value=(uid, cid, False, None))
+    monkeypatch.setattr(
+        service_mod, "resolve_singleton", AsyncMock(return_value=(uid, cid, False, None))
+    )
     svc.orchestrator.handle_message.return_value = "Maya reply"
 
     await svc.handle_update(
@@ -120,10 +122,14 @@ async def test_handle_update_routes_text_to_orchestrator():
 
 
 @pytest.mark.asyncio
-async def test_handle_update_new_user_gets_greeting():
+async def test_handle_update_first_ever_companion_gets_greeting(monkeypatch):
     svc = _make_service()
     uid, cid = uuid.uuid4(), uuid.uuid4()
-    svc.get_or_create_for_chat = AsyncMock(return_value=(uid, cid, True, "Hi, I'm Maya"))
+    monkeypatch.setattr(
+        service_mod,
+        "resolve_singleton",
+        AsyncMock(return_value=(uid, cid, True, "Hi, I'm Maya")),
+    )
 
     await svc.handle_update({"message": {"chat": {"id": 7}, "text": "/start"}})
 
@@ -179,8 +185,9 @@ from tests.conftest import db_required  # noqa: E402
 
 @db_required
 @pytest.mark.asyncio
-async def test_get_or_create_is_idempotent_per_chat(db_sessionmaker, monkeypatch):
+async def test_resolve_singleton_creates_once_then_reuses(db_sessionmaker, monkeypatch):
     """First call creates user+companion (+genesis); repeat returns the same pair."""
+    from maya.companions import singleton as singleton_mod
 
     class _Genesis:
         first_message = "Hi, I'm Maya"
@@ -188,17 +195,13 @@ async def test_get_or_create_is_idempotent_per_chat(db_sessionmaker, monkeypatch
     async def _fake_genesis(companion_id, *, sessionmaker=None, llm=None):
         return _Genesis()
 
-    monkeypatch.setattr(service_mod, "run_genesis", _fake_genesis)
+    monkeypatch.setattr(singleton_mod, "run_genesis", _fake_genesis)
 
-    svc = TelegramService(client=AsyncMock(), sessionmaker=db_sessionmaker)
-
-    uid1, cid1, created1, first1 = await svc.get_or_create_for_chat(
-        555, first_name="Sam", username="sammy"
-    )
+    uid1, cid1, created1, first1 = await singleton_mod.resolve_singleton(db_sessionmaker)
     assert created1 is True
     assert first1 == "Hi, I'm Maya"
 
-    uid2, cid2, created2, first2 = await svc.get_or_create_for_chat(555)
+    uid2, cid2, created2, first2 = await singleton_mod.resolve_singleton(db_sessionmaker)
     assert created2 is False
     assert (uid2, cid2) == (uid1, cid1)
     assert first2 is None

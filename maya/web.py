@@ -15,7 +15,8 @@ from maya.conversation.orchestrator import (
     RECENT_LIMIT,
     Orchestrator,
 )
-from maya.db.models import Companion, Message, User
+from maya.companions.singleton import resolve_singleton
+from maya.db.models import Message
 from maya.db.session import get_sessionmaker
 from maya.logging import configure_logging
 
@@ -597,43 +598,15 @@ async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time chat and debug info."""
     await websocket.accept()
     
-    # Get or create test user/companion
+    # Single shared Maya — same companion Telegram talks to (no multi-user).
     sm = get_sessionmaker()
-    async with sm() as session:
-        # Try to get existing user
-        from sqlalchemy import select
-        result = await session.execute(select(User).limit(1))
-        user = result.scalar_one_or_none()
-        
-        if not user:
-            # Create test user
-            user = User(name="Web User", description="Testing via web UI")
-            session.add(user)
-            await session.flush()
-            
-            companion = Companion(user_id=user.id, name="Maya", template_id="flirt")
-            session.add(companion)
-            await session.commit()
-            
-            await send_debug(websocket, "system", "Created new user and companion", {
-                "user_id": str(user.id),
-                "companion_id": str(companion.id)
-            })
-        else:
-            # Get first companion
-            result = await session.execute(
-                select(Companion).where(Companion.user_id == user.id).limit(1)
-            )
-            companion = result.scalar_one_or_none()
-            
-            if not companion:
-                companion = Companion(user_id=user.id, name="Maya", template_id="flirt")
-                session.add(companion)
-                await session.commit()
-    
-    user_id = user.id
-    companion_id = companion.id
-    
+    user_id, companion_id, created, _first = await resolve_singleton(sm)
+    if created:
+        await send_debug(websocket, "system", "Created new user and companion", {
+            "user_id": str(user_id),
+            "companion_id": str(companion_id),
+        })
+
     await send_debug(websocket, "system", "Session initialized", {
         "user_id": str(user_id),
         "companion_id": str(companion_id)

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 from maya.config import get_settings
+from maya.telegram.service import get_telegram_service
 from maya.conversation.orchestrator import (
     MEMORY_LIMIT,
     RECENT_LIMIT,
@@ -23,7 +25,18 @@ from maya.logging import configure_logging
 # single-orchestrator refactor).
 __all__ = ["app", "MEMORY_LIMIT", "RECENT_LIMIT"]
 
-app = FastAPI(title="Maya Web UI")
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Register the Telegram webhook on boot when fully configured (no-op locally)."""
+    settings = get_settings()
+    service = get_telegram_service()
+    if service is not None and settings.public_base_url:
+        url = f"{settings.public_base_url.rstrip('/')}/telegram/webhook"
+        await service.client.set_webhook(url, settings.telegram_webhook_secret)
+    yield
+
+
+app = FastAPI(title="Maya Web UI", lifespan=lifespan)
 
 
 # Configure logging
@@ -556,6 +569,27 @@ async def get_index():
 </html>
     """
     return HTMLResponse(content=html_content)
+
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(
+    request: Request,
+    x_telegram_bot_api_secret_token: str | None = Header(default=None),
+) -> dict:
+    """Inbound Telegram updates. Always answers 200 fast; rejects forged calls."""
+    settings = get_settings()
+    service = get_telegram_service()
+    if service is None:
+        raise HTTPException(status_code=404, detail="Telegram not configured")
+    if x_telegram_bot_api_secret_token != settings.telegram_webhook_secret:
+        raise HTTPException(status_code=403, detail="bad secret token")
+
+    update = await request.json()
+    # Run inline: Telegram tolerates webhook latency and the typing indicator
+    # covers the wait. If a turn ever risks the ~60s webhook timeout, switch to
+    # asyncio.create_task(service.handle_update(update)) and return immediately.
+    await service.handle_update(update)
+    return {"ok": True}
 
 
 @app.websocket("/ws")

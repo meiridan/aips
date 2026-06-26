@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     litellm_log: str = "ERROR"
     environment: str = "local"
 
+    # Telegram bot (optional — unset disables the channel; local dev unaffected).
+    telegram_bot_token: str = ""
+    # Random string echoed in X-Telegram-Bot-Api-Secret-Token to reject forgeries.
+    telegram_webhook_secret: str = ""
+    # Public base URL (e.g. Railway domain) used to register the webhook at startup.
+    public_base_url: str = ""
+
     # Active context used by the CLI (export MAYA_USER_ID / MAYA_COMPANION_ID).
     maya_user_id: str | None = None
     maya_companion_id: str | None = None

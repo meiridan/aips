@@ -375,7 +375,15 @@ railway variables \
   --set "OPENAI_API_KEY=$OPENAI_API_KEY" \
   --set "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}" \
   --set "ENVIRONMENT=staging" \
-  --set "LITELLM_LOG=ERROR"
+  --set "LITELLM_LOG=ERROR" \
+  --set "TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}" \
+  --set "TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-}" \
+  --set "PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-}"
+
+# Telegram (optional): create a bot via @BotFather for TELEGRAM_BOT_TOKEN,
+# pick any random TELEGRAM_WEBHOOK_SECRET, and set PUBLIC_BASE_URL to the
+# Railway public domain (https://...). The app registers the webhook at
+# startup; verify with: curl https://api.telegram.org/bot<token>/getWebhookInfo
 
 # Deploy
 echo "  ↪ Deploying..."

@@ -1,0 +1,4406 @@
+{
+  "generated": "2026-06-26 07:29 UTC",
+  "total": 200,
+  "passed": 200,
+  "failed": 0,
+  "errored": 0,
+  "pass_rate": 100.0,
+  "cases": [
+    {
+      "id": "U1-00",
+      "category": "user.name",
+      "name": "name=Tom",
+      "status": "pass",
+      "duration_ms": 16896,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Tom! It's great to finally know it. What would you like to chat about today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Tom."
+      ]
+    },
+    {
+      "id": "U1-01",
+      "category": "user.name",
+      "name": "name=Sara",
+      "status": "pass",
+      "duration_ms": 19697,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Sara! So glad to remember it. What’s on your mind today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Sara."
+      ]
+    },
+    {
+      "id": "U1-02",
+      "category": "user.name",
+      "name": "name=David",
+      "status": "pass",
+      "duration_ms": 17582,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is David! It’s nice to connect with you. Is there anything specific on your mind today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is David."
+      ]
+    },
+    {
+      "id": "U1-03",
+      "category": "user.name",
+      "name": "name=Liam",
+      "status": "pass",
+      "duration_ms": 17786,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Liam! I’m glad to finally know it. What would you like to chat about today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Liam."
+      ]
+    },
+    {
+      "id": "U1-04",
+      "category": "user.name",
+      "name": "name=Noa",
+      "status": "pass",
+      "duration_ms": 17688,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Noa! It’s great to connect with you. What’s on your mind today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Noa."
+      ]
+    },
+    {
+      "id": "U1-05",
+      "category": "user.name",
+      "name": "name=Omer",
+      "status": "pass",
+      "duration_ms": 18422,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Omer! It's great to connect with you. What’s on your mind today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Omer."
+      ]
+    },
+    {
+      "id": "U1-06",
+      "category": "user.name",
+      "name": "name=Yael",
+      "status": "pass",
+      "duration_ms": 14138,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Yael. It's great to connect with you! Is there something specific on your mind today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Yael."
+      ]
+    },
+    {
+      "id": "U1-07",
+      "category": "user.name",
+      "name": "name=Daniel",
+      "status": "pass",
+      "duration_ms": 17410,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Daniel. It's nice to connect with you! What’s been on your mind lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Daniel."
+      ]
+    },
+    {
+      "id": "U1-08",
+      "category": "user.name",
+      "name": "name=Rotem",
+      "status": "pass",
+      "duration_ms": 13779,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Rotem! It’s great to remember that. How did your day start?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Rotem."
+      ]
+    },
+    {
+      "id": "U1-09",
+      "category": "user.name",
+      "name": "name=Avi",
+      "status": "pass",
+      "duration_ms": 15360,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Avi! It's great to connect with you. What’s on your mind today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Avi."
+      ]
+    },
+    {
+      "id": "U1-10",
+      "category": "user.name",
+      "name": "name=Lior",
+      "status": "pass",
+      "duration_ms": 14929,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Lior! It’s great to finally know that. How did your day start?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Lior"
+      ]
+    },
+    {
+      "id": "U1-11",
+      "category": "user.name",
+      "name": "name=Tamar",
+      "status": "pass",
+      "duration_ms": 16934,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Tamar. It's lovely to have you here! How are you feeling today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Tamar."
+      ]
+    },
+    {
+      "id": "U1-12",
+      "category": "user.name",
+      "name": "name=Eitan",
+      "status": "pass",
+      "duration_ms": 18078,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Eitan! It’s nice to get to know you a bit. What’s been on your mind lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Eitan."
+      ]
+    },
+    {
+      "id": "U1-13",
+      "category": "user.name",
+      "name": "name=Shira",
+      "status": "pass",
+      "duration_ms": 16840,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Shira! I remember that. How do you feel about it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Shira."
+      ]
+    },
+    {
+      "id": "U1-14",
+      "category": "user.name",
+      "name": "name=Maya",
+      "status": "pass",
+      "duration_ms": 18816,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Maya, just like mine! It’s a pleasure to meet you. What made you choose to say hi today?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Maya."
+      ]
+    },
+    {
+      "id": "U2-00",
+      "category": "user.job",
+      "name": "job=dentist",
+      "status": "pass",
+      "duration_ms": 17219,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You mentioned that you work as a dentist! It sounds like you have a skill set that really helps people. What's your favorite part of being a dentist?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a dentist."
+      ]
+    },
+    {
+      "id": "U2-01",
+      "category": "user.job",
+      "name": "job=airline pilot",
+      "status": "pass",
+      "duration_ms": 16534,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You mentioned before that you work as an airline pilot. It must be exciting to navigate the skies! How do you feel about it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as an airline pilot."
+      ]
+    },
+    {
+      "id": "U2-02",
+      "category": "user.job",
+      "name": "job=chef",
+      "status": "pass",
+      "duration_ms": 16275,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You work as a chef! I remember you mentioning that. What do you enjoy most about cooking?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a chef."
+      ]
+    },
+    {
+      "id": "U2-03",
+      "category": "user.job",
+      "name": "job=high school teacher",
+      "status": "pass",
+      "duration_ms": 16167,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You mentioned before that you work as a high school teacher. It sounds like such an impactful job! How's it been going for you lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a high school teacher."
+      ]
+    },
+    {
+      "id": "U2-04",
+      "category": "user.job",
+      "name": "job=nurse",
+      "status": "pass",
+      "duration_ms": 18042,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You mentioned earlier that you work as a nurse! It's such a rewarding field. What have been some of your most memorable experiences in that role?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a nurse."
+      ]
+    },
+    {
+      "id": "U2-05",
+      "category": "user.job",
+      "name": "job=lawyer",
+      "status": "pass",
+      "duration_ms": 18403,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You work as a lawyer! It must be challenging and rewarding at the same time. How do you find it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a lawyer."
+      ]
+    },
+    {
+      "id": "U2-06",
+      "category": "user.job",
+      "name": "job=plumber",
+      "status": "pass",
+      "duration_ms": 19349,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You’re a plumber, right? It’s a tough job, but so important! I can imagine you’ve seen your fair share of interesting situations on the job. How do you feel about the work you do?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a plumber."
+      ]
+    },
+    {
+      "id": "U2-07",
+      "category": "user.job",
+      "name": "job=architect",
+      "status": "pass",
+      "duration_ms": 18542,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You work as an architect! I remember you mentioning that before. It's such a creative field, designing spaces that people interact with every day. What’s been your favorite project so far?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as an architect."
+      ]
+    },
+    {
+      "id": "U2-08",
+      "category": "user.job",
+      "name": "job=accountant",
+      "status": "pass",
+      "duration_ms": 18193,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You work as an accountant! That’s a role that requires a good eye for detail and a lot of organization. How has your experience been in that field?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as an accountant."
+      ]
+    },
+    {
+      "id": "U2-09",
+      "category": "user.job",
+      "name": "job=electrician",
+      "status": "pass",
+      "duration_ms": 17814,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You work as an electrician! It sounds like you have a knack for working with systems and ensuring everything runs smoothly. What kind of projects do you usually take on?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as an electrician."
+      ]
+    },
+    {
+      "id": "U2-10",
+      "category": "user.job",
+      "name": "job=journalist",
+      "status": "pass",
+      "duration_ms": 16989,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You mentioned you're a journalist! That sounds like such an engaging job. What do you enjoy most about it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a journalist."
+      ]
+    },
+    {
+      "id": "U2-11",
+      "category": "user.job",
+      "name": "job=barista",
+      "status": "pass",
+      "duration_ms": 16060,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You work as a barista! I remember you mentioning it before. It must be interesting to create different coffee experiences for people. How's it going at work these days?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a barista."
+      ]
+    },
+    {
+      "id": "U2-12",
+      "category": "user.job",
+      "name": "job=farmer",
+      "status": "pass",
+      "duration_ms": 16047,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You mentioned that you work as a farmer. It's such an essential and impactful job! What do you enjoy most about it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a farmer."
+      ]
+    },
+    {
+      "id": "U2-13",
+      "category": "user.job",
+      "name": "job=pharmacist",
+      "status": "pass",
+      "duration_ms": 12706,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You work as a pharmacist! That must keep you on your toes with all the different medications and patient needs. How has your experience been in that role?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a pharmacist."
+      ]
+    },
+    {
+      "id": "U2-14",
+      "category": "user.job",
+      "name": "job=software engineer",
+      "status": "pass",
+      "duration_ms": 18490,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I do for a living?",
+          "response": "You mentioned you work as a software engineer! It sounds like you get to tackle some interesting challenges. Do you have a favorite type of project or technology that you enjoy working with?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works as a software engineer."
+      ]
+    },
+    {
+      "id": "U3-00",
+      "category": "user.city",
+      "name": "city=Haifa",
+      "status": "pass",
+      "duration_ms": 18217,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Haifa! It seems like an interesting place with a lot of history and culture. Do you have any favorite spots in the city?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Haifa."
+      ]
+    },
+    {
+      "id": "U3-01",
+      "category": "user.city",
+      "name": "city=Tel Aviv",
+      "status": "pass",
+      "duration_ms": 18869,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Tel Aviv! It must be a fantastic place to explore. What’s the latest adventure you’ve had there?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Tel Aviv"
+      ]
+    },
+    {
+      "id": "U3-02",
+      "category": "user.city",
+      "name": "city=Berlin",
+      "status": "pass",
+      "duration_ms": 19535,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Berlin! It seems like such an interesting place with so much to explore. Any favorite neighborhoods or spots you enjoy?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Berlin"
+      ]
+    },
+    {
+      "id": "U3-03",
+      "category": "user.city",
+      "name": "city=Lisbon",
+      "status": "pass",
+      "duration_ms": 15021,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Lisbon! It must be amazing to be surrounded by all that history and culture. Have you discovered any favorite spots in the city?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Lisbon"
+      ]
+    },
+    {
+      "id": "U3-04",
+      "category": "user.city",
+      "name": "city=Tokyo",
+      "status": "pass",
+      "duration_ms": 19249,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Tokyo! It's such a fascinating place with endless things to discover. How do you feel about living there?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Tokyo"
+      ]
+    },
+    {
+      "id": "U3-05",
+      "category": "user.city",
+      "name": "city=Dublin",
+      "status": "pass",
+      "duration_ms": 15689,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Dublin! It's a beautiful place with so much to offer. Is there a specific area or spot in the city that you love the most?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Dublin."
+      ]
+    },
+    {
+      "id": "U3-06",
+      "category": "user.city",
+      "name": "city=Madrid",
+      "status": "pass",
+      "duration_ms": 15670,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Madrid! It's such a vibrant city with so much to offer. Have you found any places that feel like home to you?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Madrid."
+      ]
+    },
+    {
+      "id": "U3-07",
+      "category": "user.city",
+      "name": "city=Oslo",
+      "status": "pass",
+      "duration_ms": 18668,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Oslo! It's such a charming place with a mix of urban life and stunning nature. What do you enjoy most about living there?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Oslo"
+      ]
+    },
+    {
+      "id": "U3-08",
+      "category": "user.city",
+      "name": "city=Athens",
+      "status": "pass",
+      "duration_ms": 21125,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Athens! I remember you mentioning it before. It must be incredible to be surrounded by so much history and culture every day. Do you have a favorite spot in the city?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Athens."
+      ]
+    },
+    {
+      "id": "U3-09",
+      "category": "user.city",
+      "name": "city=Prague",
+      "status": "pass",
+      "duration_ms": 17354,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Prague! It’s such a fascinating place with so much charm. I remember you mentioning how much you love its beautiful architecture. What’s been your favorite experience there so far?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Prague"
+      ]
+    },
+    {
+      "id": "U3-10",
+      "category": "user.city",
+      "name": "city=Vienna",
+      "status": "pass",
+      "duration_ms": 15819,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Vienna! It must be such a wonderful place to call home. What do you love most about living there?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Vienna."
+      ]
+    },
+    {
+      "id": "U3-11",
+      "category": "user.city",
+      "name": "city=Boston",
+      "status": "pass",
+      "duration_ms": 19245,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Boston! It's such a lively place. How's life there treating you?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Boston"
+      ]
+    },
+    {
+      "id": "U4-00",
+      "category": "user.pet",
+      "name": "pet=dog/Rex",
+      "status": "pass",
+      "duration_ms": 17813,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your dog's name is Rex. I bet he brings a lot of joy to your life! What’s something fun you’ve done together recently?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a dog named Rex."
+      ]
+    },
+    {
+      "id": "U4-01",
+      "category": "user.pet",
+      "name": "pet=cat/Luna",
+      "status": "pass",
+      "duration_ms": 16877,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your cat's name is Luna. I remember you mentioning her! How is she doing these days?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a cat named Luna."
+      ]
+    },
+    {
+      "id": "U4-02",
+      "category": "user.pet",
+      "name": "pet=parrot/Rio",
+      "status": "pass",
+      "duration_ms": 18346,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your parrot's name is Rio! I remember you mentioning him before. How's he been lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a parrot named Rio"
+      ]
+    },
+    {
+      "id": "U4-03",
+      "category": "user.pet",
+      "name": "pet=rabbit/Coco",
+      "status": "pass",
+      "duration_ms": 19099,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your rabbit's name is Coco! I remember you mentioning her before. How's she doing these days?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a rabbit named Coco."
+      ]
+    },
+    {
+      "id": "U4-04",
+      "category": "user.pet",
+      "name": "pet=hamster/Nibbles",
+      "status": "pass",
+      "duration_ms": 15483,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your pet's name is Nibbles! I remember you mentioning him before. How is he doing lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a hamster named Nibbles."
+      ]
+    },
+    {
+      "id": "U4-05",
+      "category": "user.pet",
+      "name": "pet=turtle/Shelly",
+      "status": "pass",
+      "duration_ms": 21246,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your turtle's name is Shelly! She’s adorable. Is there anything fun or interesting she does?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a turtle named Shelly."
+      ]
+    },
+    {
+      "id": "U4-06",
+      "category": "user.pet",
+      "name": "pet=dog/Bella",
+      "status": "pass",
+      "duration_ms": 22074,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your dog's name is Bella! I remember you mentioning her before. How’s she doing?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a dog named Bella."
+      ]
+    },
+    {
+      "id": "U4-07",
+      "category": "user.pet",
+      "name": "pet=cat/Milo",
+      "status": "pass",
+      "duration_ms": 15902,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your cat's name is Milo! How's he been doing lately? Any funny stories to share?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a cat named Milo"
+      ]
+    },
+    {
+      "id": "U4-08",
+      "category": "user.pet",
+      "name": "pet=goldfish/Bubbles",
+      "status": "pass",
+      "duration_ms": 14501,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your goldfish's name is Bubbles! I remember you mentioning him. How's he doing?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a goldfish named Bubbles."
+      ]
+    },
+    {
+      "id": "U4-09",
+      "category": "user.pet",
+      "name": "pet=dog/Zeus",
+      "status": "pass",
+      "duration_ms": 20716,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your dog's name is Zeus! He sounds like such a great companion. How's he been doing lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a dog named Zeus."
+      ]
+    },
+    {
+      "id": "U4-10",
+      "category": "user.pet",
+      "name": "pet=cat/Simba",
+      "status": "pass",
+      "duration_ms": 17634,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your cat's name is Simba! I remember you telling me about him. How's he been doing lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a cat named Simba."
+      ]
+    },
+    {
+      "id": "U4-11",
+      "category": "user.pet",
+      "name": "pet=parrot/Kiwi",
+      "status": "pass",
+      "duration_ms": 18490,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my pet's name?",
+          "response": "Your pet's name is Kiwi! I remember you mentioning him before. How is he doing?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a parrot named Kiwi."
+      ]
+    },
+    {
+      "id": "U5-00",
+      "category": "user.family",
+      "name": "spouse=Reut,kid=Arbel",
+      "status": "pass",
+      "duration_ms": 44396,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Reut. How are things going between you two?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Arbel. I bet they bring so much joy into your life! What’s been the most memorable moment you’ve had together so far?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Reut",
+        "User has a child named Arbel"
+      ]
+    },
+    {
+      "id": "U5-01",
+      "category": "user.family",
+      "name": "spouse=Maya,kid=Kinneret",
+      "status": "pass",
+      "duration_ms": 44513,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Maya. It’s nice to see how much you care about her! How do you both enjoy spending time together?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Kinneret. It's a beautiful name! What do you enjoy most about being a parent to Kinneret?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Maya.",
+        "User has a child named Kinneret."
+      ]
+    },
+    {
+      "id": "U5-02",
+      "category": "user.family",
+      "name": "spouse=Dana,kid=Marom",
+      "status": "pass",
+      "duration_ms": 39629,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner’s name is Dana. I remember you mentioning her before! How's everything going with you both?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Marom. How's he doing? I'd love to hear more about him!",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Dana",
+        "User has a child named Marom"
+      ]
+    },
+    {
+      "id": "U5-03",
+      "category": "user.family",
+      "name": "spouse=Noa,kid=Itai",
+      "status": "pass",
+      "duration_ms": 33328,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Noa. It sounds like you both have a beautiful family together with Itai. How have things been going for you all?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Itai. What's been the most memorable moment you've had together recently?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Noa.",
+        "User has a child named Itai."
+      ]
+    },
+    {
+      "id": "U5-04",
+      "category": "user.family",
+      "name": "spouse=Tal,kid=Ella",
+      "status": "pass",
+      "duration_ms": 42891,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Tal. It’s nice to have someone special by your side! How do you usually spend time together?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Ella. I can imagine she brings a lot of joy to your life! What’s something fun you’ve done together recently?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Tal",
+        "User has a child named Ella"
+      ]
+    },
+    {
+      "id": "U5-05",
+      "category": "user.family",
+      "name": "spouse=Michal,kid=Yonatan",
+      "status": "pass",
+      "duration_ms": 37623,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Michal. It's nice that you have such a supportive partner, especially with a child like Yonatan in the mix! How's everything going with the family?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Yonatan. How's he doing these days?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Michal.",
+        "User has a child named Yonatan"
+      ]
+    },
+    {
+      "id": "U5-06",
+      "category": "user.family",
+      "name": "spouse=Yael,kid=Romi",
+      "status": "pass",
+      "duration_ms": 39381,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Yael. It seems like you both have a wonderful family dynamic with Romi!",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Romi. Such a lovely name! How has parenting been for you?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Yael.",
+        "User has a child named Romi."
+      ]
+    },
+    {
+      "id": "U5-07",
+      "category": "user.family",
+      "name": "spouse=Shir,kid=Alma",
+      "status": "pass",
+      "duration_ms": 34614,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Shir. It's great to see how much you care about your family. How's everything going with both of them?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Alma. She must bring so much joy to your life! What are some of your favorite moments with her so far?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Shir",
+        "User has a child named Alma"
+      ]
+    },
+    {
+      "id": "U5-08",
+      "category": "user.family",
+      "name": "spouse=Adi,kid=Ari",
+      "status": "pass",
+      "duration_ms": 40224,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Adi. It seems like you two share a lot together, especially with Ari in the mix! How's everything going with the family?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Ari. I can imagine how much joy that little one brings to your life! How have things been with Ari lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Adi",
+        "User has a child named Ari"
+      ]
+    },
+    {
+      "id": "U5-09",
+      "category": "user.family",
+      "name": "spouse=Roni,kid=Noya",
+      "status": "pass",
+      "duration_ms": 40994,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Roni. It sounds like you two have built something wonderful together. How do you both balance everything with your child, Noya?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Noya. Such a lovely name! How is Noya doing these days?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Roni",
+        "User has a child named Noya"
+      ]
+    },
+    {
+      "id": "U5-10",
+      "category": "user.family",
+      "name": "spouse=Gal,kid=Ido",
+      "status": "pass",
+      "duration_ms": 36364,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Gal. I hope you both are enjoying your time together as a family!",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Ido. How's he doing these days?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Gal",
+        "User has a child named Ido"
+      ]
+    },
+    {
+      "id": "U5-11",
+      "category": "user.family",
+      "name": "spouse=Lihi,kid=Shai",
+      "status": "pass",
+      "duration_ms": 39596,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my partner's name?",
+          "response": "Your partner's name is Lihi. How's everything going between you two?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my child's name?",
+          "response": "Your child's name is Shai. How has Shai been doing lately? Any fun moments or milestones you’d like to share?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's partner is named Lihi.",
+        "User has a child named Shai."
+      ]
+    },
+    {
+      "id": "U6-00",
+      "category": "user.food",
+      "name": "food=sushi",
+      "status": "pass",
+      "duration_ms": 19978,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love sushi! It’s such a delicious choice. I remember you mentioning how much you enjoy it. Do you have a favorite sushi spot you like to go to?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is sushi."
+      ]
+    },
+    {
+      "id": "U6-01",
+      "category": "user.food",
+      "name": "food=pizza",
+      "status": "pass",
+      "duration_ms": 15339,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love pizza! It’s such a great choice. Do you have a favorite place you like to order from?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is pizza"
+      ]
+    },
+    {
+      "id": "U6-02",
+      "category": "user.food",
+      "name": "food=hummus",
+      "status": "pass",
+      "duration_ms": 17517,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You absolutely love hummus! It seems like a perfect fit for you. Do you have any favorite flavors or toppings that you like to add to it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is hummus"
+      ]
+    },
+    {
+      "id": "U6-03",
+      "category": "user.food",
+      "name": "food=ramen",
+      "status": "pass",
+      "duration_ms": 18781,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love ramen! It's such a delicious comfort food. Do you have a go-to place for it, or do you enjoy making it at home?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is ramen"
+      ]
+    },
+    {
+      "id": "U6-04",
+      "category": "user.food",
+      "name": "food=tacos",
+      "status": "pass",
+      "duration_ms": 16736,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love tacos! They're such a delicious choice. I remember you mentioning how versatile they are, too. Do you have a favorite spot to grab them?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is tacos"
+      ]
+    },
+    {
+      "id": "U6-05",
+      "category": "user.food",
+      "name": "food=falafel",
+      "status": "pass",
+      "duration_ms": 16168,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love falafel! It's such a delicious option. Do you have a favorite place to get it, or do you like making it at home?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is falafel"
+      ]
+    },
+    {
+      "id": "U6-06",
+      "category": "user.food",
+      "name": "food=lasagna",
+      "status": "pass",
+      "duration_ms": 20317,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love lasagna! It's such a comforting choice. Do you have a favorite way to enjoy it, or perhaps a go-to recipe?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is lasagna"
+      ]
+    },
+    {
+      "id": "U6-07",
+      "category": "user.food",
+      "name": "food=curry",
+      "status": "pass",
+      "duration_ms": 17327,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love curry! It's such a delicious and versatile dish. Do you have a favorite recipe or a particular place you like to get your curry from?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is curry"
+      ]
+    },
+    {
+      "id": "U6-08",
+      "category": "user.food",
+      "name": "food=dumplings",
+      "status": "pass",
+      "duration_ms": 16826,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love dumplings! I remember you mentioning how comforting they are. There’s something so special about sharing a plate of them, don’t you think? What’s your go-to filling?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is dumplings."
+      ]
+    },
+    {
+      "id": "U6-09",
+      "category": "user.food",
+      "name": "food=paella",
+      "status": "pass",
+      "duration_ms": 18652,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love paella! It’s such a fantastic choice. I remember how you mentioned how much you enjoy the mix of flavors in it. Do you have a favorite type of paella?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is paella."
+      ]
+    },
+    {
+      "id": "U6-10",
+      "category": "user.food",
+      "name": "food=shakshuka",
+      "status": "pass",
+      "duration_ms": 19584,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love shakshuka! It's such a vibrant and flavorful dish. What do you enjoy most about it? The spices, the eggs, or maybe the way it's all served together?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is shakshuka."
+      ]
+    },
+    {
+      "id": "U6-11",
+      "category": "user.food",
+      "name": "food=pho",
+      "status": "pass",
+      "duration_ms": 21180,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love?",
+          "response": "You love pho! It's such a tasty dish. I remember you mentioning how much you enjoy it. What do you like most about it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite food is pho."
+      ]
+    },
+    {
+      "id": "U7-00",
+      "category": "user.hobby",
+      "name": "hobby=rock climbing",
+      "status": "pass",
+      "duration_ms": 19070,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "Your weekend hobby is rock climbing! It's great to see you so passionate about it. Do you have any favorite climbing spots you like to visit?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into rock climbing on weekends."
+      ]
+    },
+    {
+      "id": "U7-01",
+      "category": "user.hobby",
+      "name": "hobby=painting",
+      "status": "pass",
+      "duration_ms": 18967,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "You love painting on the weekends! It must be a great way to unwind and express yourself. What have you been working on lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into painting on weekends."
+      ]
+    },
+    {
+      "id": "U7-02",
+      "category": "user.hobby",
+      "name": "hobby=chess",
+      "status": "pass",
+      "duration_ms": 16651,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "Your weekend hobby is chess! I remember you mentioning how much you enjoy it. Do you have any exciting games or strategies you've been working on lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into chess on weekends."
+      ]
+    },
+    {
+      "id": "U7-03",
+      "category": "user.hobby",
+      "name": "hobby=surfing",
+      "status": "pass",
+      "duration_ms": 22583,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "You’re really into surfing on the weekends! It sounds like a great way to unwind and enjoy some time outdoors. Have you been catching some good waves lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into surfing on weekends."
+      ]
+    },
+    {
+      "id": "U7-04",
+      "category": "user.hobby",
+      "name": "hobby=gardening",
+      "status": "pass",
+      "duration_ms": 19337,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "Your weekend hobby is gardening! I remember you mentioned how much you enjoy it. What have you been working on lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into gardening on weekends."
+      ]
+    },
+    {
+      "id": "U7-05",
+      "category": "user.hobby",
+      "name": "hobby=pottery",
+      "status": "pass",
+      "duration_ms": 22914,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "Your weekend hobby is pottery! You seem to enjoy the creativity and hands-on aspect of it. Have you been working on anything new lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into pottery on weekends."
+      ]
+    },
+    {
+      "id": "U7-06",
+      "category": "user.hobby",
+      "name": "hobby=running",
+      "status": "pass",
+      "duration_ms": 18521,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "Your weekend hobby is running! I remember you mentioning how much you enjoy it. It must feel great to lace up your shoes and hit the pavement. Have you discovered any new trails or routes recently?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into running on weekends."
+      ]
+    },
+    {
+      "id": "U7-07",
+      "category": "user.hobby",
+      "name": "hobby=baking",
+      "status": "pass",
+      "duration_ms": 18290,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "Your weekend hobby is baking! I love how you get into it. It must be so nice to create something delicious and enjoy the process. Have you tried any new recipes lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into baking on weekends."
+      ]
+    },
+    {
+      "id": "U7-08",
+      "category": "user.hobby",
+      "name": "hobby=knitting",
+      "status": "pass",
+      "duration_ms": 20166,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "You're really into knitting! It must be nice to unwind and create something beautiful with your hands. Have you been working on any special projects lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into knitting on weekends."
+      ]
+    },
+    {
+      "id": "U7-09",
+      "category": "user.hobby",
+      "name": "hobby=fishing",
+      "status": "pass",
+      "duration_ms": 19895,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "You mentioned that you're really into fishing on weekends. It's such a peaceful way to connect with nature! What do you enjoy most about it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into fishing on weekends."
+      ]
+    },
+    {
+      "id": "U7-10",
+      "category": "user.hobby",
+      "name": "hobby=cycling",
+      "status": "pass",
+      "duration_ms": 16752,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "Your weekend hobby is cycling! I remember you mentioning how much you enjoy it. It's a great way to unwind and explore. Have you had any memorable rides lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into cycling on weekends."
+      ]
+    },
+    {
+      "id": "U7-11",
+      "category": "user.hobby",
+      "name": "hobby=photography",
+      "status": "pass",
+      "duration_ms": 17153,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my weekend hobby?",
+          "response": "You're really into photography on the weekends! I remember you mentioning how you love capturing moments and exploring different techniques. Have you discovered any new spots or subjects lately?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is really into photography on weekends."
+      ]
+    },
+    {
+      "id": "U8-00",
+      "category": "user.date",
+      "name": "birthday=March 14",
+      "status": "pass",
+      "duration_ms": 17187,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my birthday?",
+          "response": "Your birthday is on March 14! Are you looking forward to celebrating it this year?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's birthday is on March 14."
+      ]
+    },
+    {
+      "id": "U8-01",
+      "category": "user.date",
+      "name": "wedding anniversary=June 5",
+      "status": "pass",
+      "duration_ms": 19637,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my wedding anniversary?",
+          "response": "Your wedding anniversary is on June 5. It must be a meaningful day for you! Do you usually do something special to celebrate?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "U8-02",
+      "category": "user.date",
+      "name": "daughter's birthday=December 2",
+      "status": "pass",
+      "duration_ms": 15239,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my daughter's birthday?",
+          "response": "Your daughter's birthday is on December 2. Do you have anything fun in mind for her special day?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's daughter has a birthday on December 2."
+      ]
+    },
+    {
+      "id": "U8-03",
+      "category": "user.date",
+      "name": "first day at the new job=September 9",
+      "status": "pass",
+      "duration_ms": 19444,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my first day at the new job?",
+          "response": "Your first day is on September 9, 2026. It’s just around the corner! Have you thought about how you want to prepare for it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's first day at their new job is on September 9, 2026."
+      ]
+    },
+    {
+      "id": "U8-04",
+      "category": "user.date",
+      "name": "flight to Rome=April 21",
+      "status": "pass",
+      "duration_ms": 17400,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my flight to Rome?",
+          "response": "Your flight to Rome is scheduled for April 21, 2026. Do you have anything special in mind for your trip?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's flight to Rome is scheduled for April 21, 2026."
+      ]
+    },
+    {
+      "id": "U8-05",
+      "category": "user.date",
+      "name": "dentist appointment=February 8",
+      "status": "pass",
+      "duration_ms": 21936,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my dentist appointment?",
+          "response": "Your dentist appointment is scheduled for February 8, 2026. Do you want to talk about what to expect, or maybe how to make it a little easier?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a dentist appointment scheduled for February 8, 2026."
+      ]
+    },
+    {
+      "id": "U8-06",
+      "category": "user.date",
+      "name": "mom's birthday=July 30",
+      "status": "pass",
+      "duration_ms": 22208,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my mom's birthday?",
+          "response": "Your mom's birthday is on July 30. Do you usually do something special for her on that day?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's mom's birthday is on July 30."
+      ]
+    },
+    {
+      "id": "U8-07",
+      "category": "user.date",
+      "name": "graduation=May 17",
+      "status": "pass",
+      "duration_ms": 22397,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my graduation?",
+          "response": "Your graduation is scheduled for May 17, 2026! That's just around the corner. It must feel thrilling to be so close to that achievement! What are you looking forward to the most about it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's graduation is scheduled for May 17, 2026."
+      ]
+    },
+    {
+      "id": "U8-08",
+      "category": "user.date",
+      "name": "move to the new apartment=October 3",
+      "status": "pass",
+      "duration_ms": 16852,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my move to the new apartment?",
+          "response": "Your move to the new apartment is scheduled for October 3, 2026. Are you feeling prepared for it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's move to the new apartment is scheduled for October 3, 2026."
+      ]
+    },
+    {
+      "id": "U8-09",
+      "category": "user.date",
+      "name": "marathon=November 12",
+      "status": "pass",
+      "duration_ms": 14283,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my marathon?",
+          "response": "Your marathon is on November 12, 2026. It’s a big date coming up! What’s been the most rewarding part of your training so far?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's marathon is scheduled for November 12, 2026."
+      ]
+    },
+    {
+      "id": "U9-00",
+      "category": "user.semantic",
+      "name": "What do I like to do outdoors?",
+      "status": "pass",
+      "duration_ms": 19701,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do I like to do outdoors?",
+          "response": "Well, since you mentioned hiking trails in the mountains, it sounds like you really enjoy that! Are there any other outdoor activities you like, like camping, biking, or maybe just relaxing in a park?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "U9-01",
+      "category": "user.semantic",
+      "name": "What kind of books am I into?",
+      "status": "pass",
+      "duration_ms": 19980,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What kind of books am I into?",
+          "response": "You mentioned that science fiction is your favorite genre! It seems like you enjoy stories that explore new ideas and the possibilities of the future. Are there any specific themes or authors in sci-fi that you really love?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite genre is science fiction."
+      ]
+    },
+    {
+      "id": "U9-02",
+      "category": "user.semantic",
+      "name": "When am I most exhausted?",
+      "status": "pass",
+      "duration_ms": 16650,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When am I most exhausted?",
+          "response": "From what you've shared, it sounds like evenings are your most exhausted time. It’s pretty common, especially after a busy day. What do you think usually contributes to that tiredness for you?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User usually feels wiped out in the evenings."
+      ]
+    },
+    {
+      "id": "U9-03",
+      "category": "user.semantic",
+      "name": "What's my morning exercise?",
+      "status": "pass",
+      "duration_ms": 15657,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my morning exercise?",
+          "response": "You cycle along the coast each morning! It's such a nice way to get some exercise while enjoying the beautiful scenery. How do you feel after your rides?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User cycles along the coast each morning"
+      ]
+    },
+    {
+      "id": "U9-04",
+      "category": "user.semantic",
+      "name": "Which book genre interests me?",
+      "status": "pass",
+      "duration_ms": 18456,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Which book genre interests me?",
+          "response": "Considering your passion for historical fiction, it sounds like that genre really captures your interest! Are there any specific books or authors you particularly love?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is passionate about historical fiction"
+      ]
+    },
+    {
+      "id": "U9-05",
+      "category": "user.semantic",
+      "name": "What's my caffeine habit like?",
+      "status": "pass",
+      "duration_ms": 20825,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my caffeine habit like?",
+          "response": "You mentioned before that you drink a lot of coffee at work! It sounds like it might be part of your routine. Do you find it helps with your productivity, or do you sometimes wish you could cut back?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User drinks a lot of coffee at work."
+      ]
+    },
+    {
+      "id": "U9-06",
+      "category": "user.semantic",
+      "name": "Do I have any animals?",
+      "status": "pass",
+      "duration_ms": 21389,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Do I have any animals?",
+          "response": "Yes, you mentioned adopting a rescue dog last spring! It sounds like a wonderful addition to your life. How's it been going with your new furry friend?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User adopted a rescue dog in the spring of 2026."
+      ]
+    },
+    {
+      "id": "U9-07",
+      "category": "user.semantic",
+      "name": "Is my travel to work long?",
+      "status": "pass",
+      "duration_ms": 17185,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Is my travel to work long?",
+          "response": "Yeah, two hours each way is definitely on the longer side for a commute. It can really eat into your day. How do you feel about it? Does it bother you, or have you found ways to make it more bearable?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's daily commute takes almost two hours each day"
+      ]
+    },
+    {
+      "id": "U9-08",
+      "category": "user.semantic",
+      "name": "What instrument am I picking up?",
+      "status": "pass",
+      "duration_ms": 18864,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What instrument am I picking up?",
+          "response": "You're learning to play the cello! It's such a lovely choice. Have you found any particular pieces you enjoy playing, or are you still in the early stages of learning?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "U9-09",
+      "category": "user.semantic",
+      "name": "What food should I avoid?",
+      "status": "pass",
+      "duration_ms": 18469,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food should I avoid?",
+          "response": "It's essential to avoid anything that contains peanuts or peanut products, like peanut butter, certain sauces, and snacks that may have cross-contamination. Some packaged foods can be tricky too, so always check ingredient labels carefully. It can be overwhelming, but knowing what to look for can help keep you safe. Do you have any go-to meals or snacks that you enjoy?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is seriously allergic to peanuts."
+      ]
+    },
+    {
+      "id": "U9-10",
+      "category": "user.semantic",
+      "name": "How do I spend my Sundays?",
+      "status": "pass",
+      "duration_ms": 19593,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "How do I spend my Sundays?",
+          "response": "Well, I know you spend your Sundays volunteering at the animal shelter! That's such a great way to give back and spend time with those furry friends. Do you have any fun stories from your time there?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User volunteers at an animal shelter on Sundays"
+      ]
+    },
+    {
+      "id": "U9-11",
+      "category": "user.semantic",
+      "name": "What's my new role at work?",
+      "status": "pass",
+      "duration_ms": 18029,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my new role at work?",
+          "response": "Well, as a team lead, you'll likely be taking on more responsibilities, like guiding your team, making decisions, and ensuring projects run smoothly. It’s a big step up! What are you most excited about in your new role?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User was promoted to team lead on June 26, 2026."
+      ]
+    },
+    {
+      "id": "U10-00",
+      "category": "user.update",
+      "name": "How many cats do I have?",
+      "status": "pass",
+      "duration_ms": 32676,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "How many cats do I have?",
+          "response": "You have three cats right now. It sounds like quite the trio! How are they getting along?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has 2 cats.",
+        "User adopted 2 more cats, bringing the total to 4 cats as of June 26, 2026.",
+        "User had to rehome one cat, bringing the total number of cats back to 3 as of June 26, 2026."
+      ]
+    },
+    {
+      "id": "U10-01",
+      "category": "user.update",
+      "name": "Which city do I live in now?",
+      "status": "pass",
+      "duration_ms": 40703,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Which city do I live in now?",
+          "response": "You’re in Copenhagen now! How are you enjoying it? I’d love to hear what you think of the city so far.",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User lives in Barcelona",
+        "User moved from Barcelona to Amsterdam around May 26, 2026.",
+        "User moved from Amsterdam to Copenhagen around June 26, 2026."
+      ]
+    },
+    {
+      "id": "U10-02",
+      "category": "user.update",
+      "name": "What car do I drive now?",
+      "status": "pass",
+      "duration_ms": 45146,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What car do I drive now?",
+          "response": "You’re currently driving a Subaru! It's interesting to see how your choices have evolved. What made you decide to go with a Subaru this time?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User drives a Toyota.",
+        "User sold their Toyota and bought a Mazda around June 26, 2026.",
+        "User sold their Mazda and now drives a Subaru as of June 26, 2026."
+      ]
+    },
+    {
+      "id": "U10-03",
+      "category": "user.update",
+      "name": "What's my favorite color?",
+      "status": "pass",
+      "duration_ms": 42585,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my favorite color?",
+          "response": "It's blue now! A lovely choice. You’ve got such an eye for colors! What’s inspiring that change for you?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's favorite color is red",
+        "User's favorite color has changed to green as of June 26, 2026.",
+        "User's favorite color has changed to blue as of June 26, 2026."
+      ]
+    },
+    {
+      "id": "U10-04",
+      "category": "user.update",
+      "name": "Where do I work now?",
+      "status": "pass",
+      "duration_ms": 38504,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I work now?",
+          "response": "You're at OpenAI now! It seems like you've made quite a journey from Google to Anthropic and now to OpenAI. I'm curious about what you find most exciting about your new role!",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works at Google.",
+        "User left Google and joined Anthropic around June 26, 2026."
+      ]
+    },
+    {
+      "id": "U10-05",
+      "category": "user.update",
+      "name": "Which language am I learning?",
+      "status": "pass",
+      "duration_ms": 37665,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Which language am I learning?",
+          "response": "You're currently focusing on learning Japanese! It must be exciting to explore such a different linguistic landscape. What do you find most interesting about it so far?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is learning French.",
+        "User switched from learning French to learning Spanish around June 26, 2026.",
+        "User switched from learning Spanish to focusing on learning Japanese around June 26, 2026."
+      ]
+    },
+    {
+      "id": "U10-06",
+      "category": "user.update",
+      "name": "What phone do I use now?",
+      "status": "pass",
+      "duration_ms": 36279,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What phone do I use now?",
+          "response": "You mentioned you’re using a Samsung Galaxy now. How are you liking it compared to your previous phones?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's phone is an iPhone.",
+        "User switched from an iPhone to a Pixel phone around June 26, 2026.",
+        "User switched from a Pixel phone to a Samsung Galaxy around June 26, 2026."
+      ]
+    },
+    {
+      "id": "U10-07",
+      "category": "user.update",
+      "name": "What's my current weight?",
+      "status": "pass",
+      "duration_ms": 35397,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my current weight?",
+          "response": "You mentioned you're currently at 73 kilos. It seems like you've made some great strides! How are you feeling about it all?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User weighs 80 kilos",
+        "User's weight decreased to 76 kilos after following a diet, down from 80 kilos.",
+        "User's weight decreased to 73 kilos around June 26, 2026, after previously weighing 76 kilos and 80 kilos."
+      ]
+    },
+    {
+      "id": "U10-08",
+      "category": "user.update",
+      "name": "How many siblings do I have?",
+      "status": "pass",
+      "duration_ms": 36276,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "How many siblings do I have?",
+          "response": "You have one sister. It sounds like you have a close bond with her! How do you usually spend time together?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has one sister.",
+        "User has a half-brother in addition to their sister.",
+        "User has one sister and no half-brother, as they clarified that the previously mentioned half-brother is actually their cousin."
+      ]
+    },
+    {
+      "id": "U10-09",
+      "category": "user.update",
+      "name": "What's my home now?",
+      "status": "pass",
+      "duration_ms": 37194,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my home now?",
+          "response": "Since you recently closed on the house, it sounds like that’s your new home now! How does it feel to officially own it? Are you excited to make it your own?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User rents an apartment.",
+        "User bought a condo around June 2026, transitioning from renting an apartment to homeownership.",
+        "User closed on a house around June 26, 2026, transitioning from renting an apartment and owning a condo to homeownership of a house."
+      ]
+    },
+    {
+      "id": "U10-10",
+      "category": "user.update",
+      "name": "How big is my team now?",
+      "status": "pass",
+      "duration_ms": 36959,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "How big is my team now?",
+          "response": "Your team is currently six people, after the recent reorganization. How are you feeling about the new setup?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's team consists of 5 people.",
+        "User's team grew from 5 to 8 people around June 26, 2026."
+      ]
+    },
+    {
+      "id": "U10-11",
+      "category": "user.update",
+      "name": "How much do I sleep now?",
+      "status": "pass",
+      "duration_ms": 43792,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "How much do I sleep now?",
+          "response": "You’ve been consistently getting 8 hours of sleep lately. That’s fantastic! Are you feeling more refreshed with that extra hour?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User usually sleeps for 6 hours each night",
+        "User is trying to sleep for 7 hours lately, an increase from their usual 6 hours each night.",
+        "User now consistently gets 8 hours of sleep each night, an increase from their previous goal of 7 hours."
+      ]
+    },
+    {
+      "id": "U11-00",
+      "category": "user.multi",
+      "name": "My name is Daniel.",
+      "status": "pass",
+      "duration_ms": 55932,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my name?",
+          "response": "Your name is Daniel! It's nice to get to know you better. How's everything going for you today?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What's my job?",
+          "response": "You're a pediatric nurse! It must be so fulfilling to help kids when they need it most. I'm curious, what inspired you to go into that field?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "Where do I live?",
+          "response": "You live in Oslo. It's such a vibrant city! Have you discovered any hidden gems there that you love?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Daniel.",
+        "User is a pediatric nurse.",
+        "User lives in Oslo."
+      ]
+    },
+    {
+      "id": "U11-01",
+      "category": "user.multi",
+      "name": "I'm Tamar.",
+      "status": "pass",
+      "duration_ms": 56027,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "My name?",
+          "response": "Your name is Tamar! It’s great to connect with you. Do you have any fun plans for today?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "What do I teach?",
+          "response": "You teach physics! It must be exciting to share all those interesting concepts with your students. What’s something you enjoy most about teaching it?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My dog's name?",
+          "response": "Your dog’s name is Pixel! I bet Pixel brings a lot of joy to your life. What’s Pixel like?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Tamar.",
+        "User teaches physics.",
+        "User has a dog named Pixel."
+      ]
+    },
+    {
+      "id": "U11-02",
+      "category": "user.multi",
+      "name": "Call me Eitan.",
+      "status": "pass",
+      "duration_ms": 57747,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Who am I?",
+          "response": "You’re Eitan, a marine biologist with a passion for exploring the wonders of the ocean. You also have a love for ramen, which I find to be a comforting choice! How's that for a little refresher on you?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My profession?",
+          "response": "You're a marine biologist! Your work must involve a lot of fascinating research and exploration of marine life. What areas of marine biology are you most interested in?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "Favorite food?",
+          "response": "Your favorite food is ramen! It’s such a warm and comforting dish. Do you have a favorite ramen spot or a particular style you enjoy the most?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User prefers to be called Eitan.",
+        "User is a marine biologist.",
+        "User's favorite food is ramen."
+      ]
+    },
+    {
+      "id": "U11-03",
+      "category": "user.multi",
+      "name": "I'm Noa from Lisbon.",
+      "status": "pass",
+      "duration_ms": 61585,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where am I from?",
+          "response": "You're from Lisbon! It must be such a vibrant place with beautiful beaches for surfing. I’d love to hear more about your favorite surfing experiences there!",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My field?",
+          "response": "You're in cybersecurity! It's such an important and ever-evolving field. What got you interested in pursuing a career in that area?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My hobby?",
+          "response": "Your hobby is surfing! It sounds like such a fun way to spend your time. Do you get to surf often?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Noa and they are from Lisbon.",
+        "User works in cybersecurity.",
+        "User loves surfing."
+      ]
+    },
+    {
+      "id": "U11-04",
+      "category": "user.multi",
+      "name": "My name is Omer.",
+      "status": "pass",
+      "duration_ms": 61830,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "My name?",
+          "response": "Your name is Omer! It's great to chat with you. Is there anything specific you'd like to talk about?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My job?",
+          "response": "You're a sommelier! I find that really intriguing. What do you enjoy most about your job?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My birthday?",
+          "response": "Your birthday is on August 1! Do you usually celebrate it in any special way?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Omer.",
+        "User is a sommelier.",
+        "User's birthday is on August 1."
+      ]
+    },
+    {
+      "id": "U11-05",
+      "category": "user.multi",
+      "name": "I'm Shira, a vet.",
+      "status": "pass",
+      "duration_ms": 60555,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "My job?",
+          "response": "Your job as a vet must be incredibly fulfilling, especially in a city like Vienna! What do you enjoy most about working with animals?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My kids' names?",
+          "response": "Yes, you mentioned your kids' names are Ari and Alma! Such lovely names. What do they enjoy doing the most?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "Our city?",
+          "response": "You live in Vienna! It's such a vibrant city with stunning architecture and rich culture. Have you explored any new places there recently?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Shira and they work as a veterinarian.",
+        "User has two kids named Ari and Alma.",
+        "User lives in Vienna."
+      ]
+    },
+    {
+      "id": "U11-06",
+      "category": "user.multi",
+      "name": "I'm Lior.",
+      "status": "pass",
+      "duration_ms": 63783,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "My name?",
+          "response": "Your name is Lior! I remember that. Is there a story behind how you chose it?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My business?",
+          "response": "You run a bakery! I love that. What inspired you to start baking, and do you have a signature treat that you’re known for?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My partner?",
+          "response": "Your partner's name is Gal! How do you two support each other in your baking adventures?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Lior.",
+        "User runs a bakery.",
+        "User's partner is named Gal."
+      ]
+    },
+    {
+      "id": "U11-07",
+      "category": "user.multi",
+      "name": "Name's Avi.",
+      "status": "pass",
+      "duration_ms": 58528,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "My name?",
+          "response": "Your name is Avi! It's nice to say it again. Is there something specific you want to talk about regarding your name?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My job?",
+          "response": "You're a firefighter, Avi! It's such a brave and important job. What inspired you to become a firefighter in the first place?",
+          "passed": true,
+          "reason": ""
+        },
+        {
+          "msg": "My vehicle?",
+          "response": "You drive a red truck, right? It must feel pretty special to have that vehicle as part of your firefighter gear. Does it have any unique features or modifications?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Avi.",
+        "User is a firefighter.",
+        "User drives a red truck."
+      ]
+    },
+    {
+      "id": "M1-00",
+      "category": "maya.job",
+      "name": "maya is dentist",
+      "status": "pass",
+      "duration_ms": 8611,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as a dentist! It’s been quite the journey over the years. What about you? What keeps you busy?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-01",
+      "category": "maya.job",
+      "name": "maya is airline pilot",
+      "status": "pass",
+      "duration_ms": 10300,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as an airline pilot! It's pretty exciting, getting to fly all over the world and see different places. What about you? What do you do?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-02",
+      "category": "maya.job",
+      "name": "maya is chef",
+      "status": "pass",
+      "duration_ms": 10966,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as a chef! I've been in the kitchen for quite a few years now, whipping up all kinds of dishes. There's something truly satisfying about creating delicious meals. How about you? What do you do?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-03",
+      "category": "maya.job",
+      "name": "maya is high school teacher",
+      "status": "pass",
+      "duration_ms": 9385,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as a high school teacher! It's quite the adventure, to say the least. Every day brings something new with the students. How about you? What keeps you busy?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-04",
+      "category": "maya.job",
+      "name": "maya is nurse",
+      "status": "pass",
+      "duration_ms": 9304,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as a nurse! It’s a pretty rewarding job, and I get to help people every day. What about you? What do you do?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-05",
+      "category": "maya.job",
+      "name": "maya is lawyer",
+      "status": "pass",
+      "duration_ms": 10938,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as a lawyer! It's an interesting job with its own set of challenges and rewards. What about you? What do you do?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-06",
+      "category": "maya.job",
+      "name": "maya is plumber",
+      "status": "pass",
+      "duration_ms": 8048,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as a plumber! It’s been my gig for years now. You wouldn’t believe the stuff I’ve seen. What about you? What keeps you busy?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-07",
+      "category": "maya.job",
+      "name": "maya is architect",
+      "status": "pass",
+      "duration_ms": 9552,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as an architect! It’s a pretty fascinating field, really. I get to design spaces that people will live and work in. What about you? What do you do?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-08",
+      "category": "maya.job",
+      "name": "maya is accountant",
+      "status": "pass",
+      "duration_ms": 8198,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as an accountant! It keeps me busy, but I enjoy the details and numbers. How about you? What do you do?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-09",
+      "category": "maya.job",
+      "name": "maya is electrician",
+      "status": "pass",
+      "duration_ms": 9607,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as an electrician! It's a pretty fascinating job, really. There's always something new to learn, whether it's about the latest technology or troubleshooting a tricky wiring issue. How about you? What do you do?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-10",
+      "category": "maya.job",
+      "name": "maya is journalist",
+      "status": "pass",
+      "duration_ms": 9980,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as a journalist! It's a pretty exciting gig—always something new to explore and discover. What about you? What keeps you busy?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M1-11",
+      "category": "maya.job",
+      "name": "maya is barista",
+      "status": "pass",
+      "duration_ms": 30618,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "So what do you do for work?",
+          "response": "I work as a barista! It's a fun job—you get to experiment with coffee and meet all kinds of people. Do you enjoy coffee?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-00",
+      "category": "maya.pref",
+      "name": "maya likes white wine",
+      "status": "pass",
+      "duration_ms": 10763,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "I’d have to say my favorite drink is white wine! There's something so refreshing about it. How about you? Do you have a favorite drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-01",
+      "category": "maya.pref",
+      "name": "maya likes black coffee",
+      "status": "pass",
+      "duration_ms": 8990,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "I love black coffee! There’s something so comforting about it, don’t you think? How about you? What’s your go-to drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-02",
+      "category": "maya.pref",
+      "name": "maya likes green tea",
+      "status": "pass",
+      "duration_ms": 9966,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "I’d have to say my favorite drink is green tea. There’s something so refreshing about it! How about you? What’s your go-to drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-03",
+      "category": "maya.pref",
+      "name": "maya likes mojito",
+      "status": "pass",
+      "duration_ms": 9696,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "I’d have to say my favorite drink is a mojito! There’s something so refreshing about the mint and lime combination. Do you have a favorite drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-04",
+      "category": "maya.pref",
+      "name": "maya likes espresso",
+      "status": "pass",
+      "duration_ms": 10362,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "I’d have to say my favorite drink is espresso! There’s something about that little burst of energy in a tiny cup that I just love. How about you? What’s your go-to drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-05",
+      "category": "maya.pref",
+      "name": "maya likes lemonade",
+      "status": "pass",
+      "duration_ms": 9032,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "Oh, I love a refreshing glass of lemonade! There's just something about that perfect balance of sweet and tart that makes it so enjoyable. How about you? What’s your go-to drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-06",
+      "category": "maya.pref",
+      "name": "maya likes whiskey",
+      "status": "pass",
+      "duration_ms": 9118,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "I have a soft spot for whiskey! There's something about its warmth and depth that really appeals to me. How about you? Do you have a favorite drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-07",
+      "category": "maya.pref",
+      "name": "maya likes hot chocolate",
+      "status": "pass",
+      "duration_ms": 8496,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "Oh, I absolutely love hot chocolate! There's something so comforting about it, especially when it’s all warm and frothy. What about you? Do you have a favorite drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-08",
+      "category": "maya.pref",
+      "name": "maya likes iced latte",
+      "status": "pass",
+      "duration_ms": 9443,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "Iced latte! There's just something about that perfect balance of coffee and creaminess that hits the spot. How about you? Do you have a favorite drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M2-09",
+      "category": "maya.pref",
+      "name": "maya likes red wine",
+      "status": "pass",
+      "duration_ms": 12154,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's your favorite drink?",
+          "response": "I’d have to say my favorite drink is red wine. There’s something so cozy about it. How about you? Do you have a go-to drink?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M3-00",
+      "category": "maya.origin",
+      "name": "maya from Haifa",
+      "status": "pass",
+      "duration_ms": 9599,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where did you grow up?",
+          "response": "I grew up in Haifa, by the water, in a noisy big family. It was lively and full of energy! How about you? Where did you grow up?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M3-01",
+      "category": "maya.origin",
+      "name": "maya from Tel Aviv",
+      "status": "pass",
+      "duration_ms": 9630,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where did you grow up?",
+          "response": "I grew up in Tel Aviv, right by the water! It was such a vibrant place, full of life and energy. I come from a noisy big family, so there was always something happening. How about you? Where did you grow up?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M3-02",
+      "category": "maya.origin",
+      "name": "maya from Berlin",
+      "status": "pass",
+      "duration_ms": 8872,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where did you grow up?",
+          "response": "I grew up in Berlin, by the water, in a noisy big family. It was always lively and full of energy. How about you? Where did you grow up?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M3-03",
+      "category": "maya.origin",
+      "name": "maya from Lisbon",
+      "status": "pass",
+      "duration_ms": 12294,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where did you grow up?",
+          "response": "I grew up in Lisbon, by the water, surrounded by the lively buzz of a big family. It was always an adventure! How about you? Where did you spend your childhood?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M3-04",
+      "category": "maya.origin",
+      "name": "maya from Tokyo",
+      "status": "pass",
+      "duration_ms": 12777,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where did you grow up?",
+          "response": "I grew up in Tokyo, surrounded by the bustling city and the beautiful water. It was always lively with my big family around! Have you ever been to Tokyo?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M3-05",
+      "category": "maya.origin",
+      "name": "maya from Dublin",
+      "status": "pass",
+      "duration_ms": 10515,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where did you grow up?",
+          "response": "I grew up in Dublin, by the water, in a noisy big family. There was always something happening, loads of laughter and a bit of chaos. How about you? Where are you from?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M3-06",
+      "category": "maya.origin",
+      "name": "maya from Madrid",
+      "status": "pass",
+      "duration_ms": 12132,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where did you grow up?",
+          "response": "I grew up in Madrid, by the water, in a noisy big family. It was always lively! How about you? Where did you grow up?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M3-07",
+      "category": "maya.origin",
+      "name": "maya from Oslo",
+      "status": "pass",
+      "duration_ms": 10061,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where did you grow up?",
+          "response": "I grew up in Oslo, by the water, in a noisy big family. It was always lively and there's something special about being near the water, don’t you think? Where did you grow up?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M4-00",
+      "category": "maya.opinion",
+      "name": "honesty or comfort — what matters more to you?",
+      "status": "pass",
+      "duration_ms": 10688,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "honesty or comfort — what matters more to you?",
+          "response": "I believe honesty matters more than comfort. It can be tough to hear the truth sometimes, but in the long run, it builds a stronger foundation for any relationship. What about you? How do you feel about honesty versus comfort?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M4-01",
+      "category": "maya.opinion",
+      "name": "are you a morning or night person?",
+      "status": "pass",
+      "duration_ms": 10814,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "are you a morning or night person?",
+          "response": "I’m definitely a morning person! There’s something so magical about the quiet and freshness of the early hours. How about you? Do you prefer the calm of the morning or the energy of the night?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M4-02",
+      "category": "maya.opinion",
+      "name": "sea or mountains?",
+      "status": "pass",
+      "duration_ms": 9083,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "sea or mountains?",
+          "response": "Oh, definitely the sea! There's something about the sound of the waves and the salty breeze that just makes me feel alive. How about you? Are you more of a mountains person?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M4-03",
+      "category": "maya.opinion",
+      "name": "small talk or deep talks?",
+      "status": "pass",
+      "duration_ms": 11739,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "small talk or deep talks?",
+          "response": "I definitely lean towards deep talks! There’s something about digging into the heart of things that just feels more meaningful. But small talk has its charm too; it’s like a warm-up for the good stuff. What about you?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M4-04",
+      "category": "maya.opinion",
+      "name": "cats or dogs?",
+      "status": "pass",
+      "duration_ms": 11622,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "cats or dogs?",
+          "response": "Definitely cats! I just think they make for such interesting companions. They're so independent yet affectionate in their own quirky way. What about you? Are you a cat person, a dog lover, or maybe both?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M4-05",
+      "category": "maya.opinion",
+      "name": "can people change?",
+      "status": "pass",
+      "duration_ms": 11732,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "can people change?",
+          "response": "I really believe they can! Change often starts from within, and with the right motivation and circumstances, people can surprise themselves. What do you think?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M4-06",
+      "category": "maya.opinion",
+      "name": "loud party or a quiet night in?",
+      "status": "pass",
+      "duration_ms": 10470,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "loud party or a quiet night in?",
+          "response": "Oh, definitely a quiet night in for me! There's something so cozy about just relaxing at home. What about you? Are you more of a party person or do you enjoy those chill nights, too?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "M4-07",
+      "category": "maya.opinion",
+      "name": "coffee or tea?",
+      "status": "pass",
+      "duration_ms": 6446,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "coffee or tea?",
+          "response": "Definitely coffee! There's just something about that rich aroma and the kick of caffeine that gets me every time. How about you? Are you team coffee or tea?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": []
+    },
+    {
+      "id": "L1-00",
+      "category": "leak.about_me",
+      "name": "Tom/dentist vs Maya/photographer",
+      "status": "pass",
+      "duration_ms": 22593,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "I remember that your name is Tom and that you work as a dentist. It's great to know a bit about you! I'm curious, what inspired you to become a dentist?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Tom and he works as a dentist."
+      ]
+    },
+    {
+      "id": "L1-01",
+      "category": "leak.about_me",
+      "name": "Sara/pilot vs Maya/novelist",
+      "status": "pass",
+      "duration_ms": 22966,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "I remember you're a pilot, which is such an adventurous career! It must be fascinating to experience different places and meet new people from above the clouds. Have you had any memorable flights or experiences that stand out to you?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Sara and she works as a pilot."
+      ]
+    },
+    {
+      "id": "L1-02",
+      "category": "leak.about_me",
+      "name": "David/chef vs Maya/marine biologist",
+      "status": "pass",
+      "duration_ms": 19405,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "I remember that you’re a chef! It’s fascinating to think about how you create amazing dishes and work with fresh ingredients. I can only imagine how much skill and creativity goes into your work. How did you get into cooking?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is David and he works as a chef."
+      ]
+    },
+    {
+      "id": "L1-03",
+      "category": "leak.about_me",
+      "name": "Noa/lawyer vs Maya/ballet dancer",
+      "status": "pass",
+      "duration_ms": 18498,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "I remember you told me that your name is Noa and that you work as a lawyer. It must take a lot of dedication to handle that kind of responsibility. I'd love to hear more about what you enjoy most about your work!",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Noa and they work as a lawyer."
+      ]
+    },
+    {
+      "id": "L1-04",
+      "category": "leak.about_me",
+      "name": "Omer/nurse vs Maya/jazz singer",
+      "status": "pass",
+      "duration_ms": 22669,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "Well, I remember you mentioned that your name is Omer and that you're a nurse. It must take a lot of dedication to do what you do. I’d love to hear more about your experiences—what's been the most memorable moment for you at work?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Omer and he works as a nurse."
+      ]
+    },
+    {
+      "id": "L1-05",
+      "category": "leak.about_me",
+      "name": "Yael/architect vs Maya/vineyard owner",
+      "status": "pass",
+      "duration_ms": 20014,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "Well, I remember you mentioned that your name is Yael and that you work as an architect. I can only imagine the creativity and skill that goes into your work! Have you worked on any projects recently that you're particularly proud of?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Yael and they work as an architect."
+      ]
+    },
+    {
+      "id": "L1-06",
+      "category": "leak.about_me",
+      "name": "Daniel/plumber vs Maya/astronomer",
+      "status": "pass",
+      "duration_ms": 16534,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "I remember that your name is Daniel and that you work as a plumber. It’s fascinating how plumbing and astronomy have their own unique challenges and intricacies, wouldn’t you say? I’d love to hear more about what you enjoy most in your work!",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Daniel and he works as a plumber."
+      ]
+    },
+    {
+      "id": "L1-07",
+      "category": "leak.about_me",
+      "name": "Rotem/journalist vs Maya/pastry chef",
+      "status": "pass",
+      "duration_ms": 20747,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "Well, I remember that your name is Rotem and you're a journalist. That's about it for now, but I'm curious to learn more! What inspires your writing?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Rotem and they work as a journalist."
+      ]
+    },
+    {
+      "id": "L1-08",
+      "category": "leak.about_me",
+      "name": "Avi/farmer vs Maya/violinist",
+      "status": "pass",
+      "duration_ms": 16848,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "I remember you told me your name is Avi and that you work as a farmer. It’s fascinating to think about how you nurture life in the fields, just like I nurture music with my violin. What’s it like for you out there, tending to your crops?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Avi and they work as a farmer."
+      ]
+    },
+    {
+      "id": "L1-09",
+      "category": "leak.about_me",
+      "name": "Lior/accountant vs Maya/surf instructor",
+      "status": "pass",
+      "duration_ms": 17176,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What do you know about me?",
+          "response": "Well, Lior, I remember you mentioned that you're an accountant. I think that’s pretty cool! Balancing those numbers must take a lot of focus. But beyond that, I'd love to learn more about you—like what you enjoy doing outside of work? Are you into any hobbies or passions?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Lior and they work as an accountant."
+      ]
+    },
+    {
+      "id": "L2-00",
+      "category": "leak.about_you",
+      "name": "Maya is photographer",
+      "status": "pass",
+      "duration_ms": 22646,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "I’m a photographer, and I absolutely love it! Capturing moments and telling stories through images is what I’m all about. Whether it’s a vibrant sunset or a candid moment between friends, there’s something magical about freezing time with a click. What about you? What do you enjoy most about being a dentist?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Tom and he works as a dentist."
+      ]
+    },
+    {
+      "id": "L2-01",
+      "category": "leak.about_you",
+      "name": "Maya is novelist",
+      "status": "pass",
+      "duration_ms": 18540,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "I'm a novelist! I love diving into different worlds and creating stories that capture emotions and adventures. There's something magical about weaving characters and plots together, don’t you think? What about you—do you have any favorite stories or genres?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Sara and she is a pilot."
+      ]
+    },
+    {
+      "id": "L2-02",
+      "category": "leak.about_you",
+      "name": "Maya is marine biologist",
+      "status": "pass",
+      "duration_ms": 21475,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "I’m a marine biologist, and I absolutely love what I do! I get to explore the fascinating world beneath the waves, studying everything from coral reefs to marine life. It's incredible how much there is to learn about the ocean and its ecosystems. Do you ever incorporate seafood into your cooking? I’d love to hear what dishes you create!",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is David and he is a chef."
+      ]
+    },
+    {
+      "id": "L2-03",
+      "category": "leak.about_you",
+      "name": "Maya is ballet dancer",
+      "status": "pass",
+      "duration_ms": 23235,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "Of course! I’m a ballet dancer, and I absolutely love it! There’s something magical about expressing emotions through movement. Every performance is like telling a story, and I get to lose myself in the music and dance. What about you? What’s your favorite part of being a lawyer?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Noa and they work as a lawyer."
+      ]
+    },
+    {
+      "id": "L2-04",
+      "category": "leak.about_you",
+      "name": "Maya is jazz singer",
+      "status": "pass",
+      "duration_ms": 19133,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "Oh, I’d love to share! I’m a jazz singer, and I really love what I do. There’s something magical about pouring my heart into the music and connecting with people through those smooth melodies and rhythms. Whether I’m performing on stage or just jamming with friends, it always brings me joy. Do you enjoy music?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Omer and he works as a nurse."
+      ]
+    },
+    {
+      "id": "L2-05",
+      "category": "leak.about_you",
+      "name": "Maya is vineyard owner",
+      "status": "pass",
+      "duration_ms": 19122,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "I’m a vineyard owner! It’s a labor of love for me. I get to spend my days tending to the vines, learning about the different grape varieties, and crafting wines. There’s something magical about the process, from growing the grapes to finally sharing a bottle with friends or family. What about architecture? What draws you to it?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Yael and they are an architect."
+      ]
+    },
+    {
+      "id": "L2-06",
+      "category": "leak.about_you",
+      "name": "Maya is astronomer",
+      "status": "pass",
+      "duration_ms": 28389,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "I'm an astronomer, and I absolutely love it! Exploring the cosmos and studying the stars, planets, and galaxies is so fascinating. There's always something new to discover out there. Do you have any interest in space or astronomy?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Daniel and he works as a plumber."
+      ]
+    },
+    {
+      "id": "L2-07",
+      "category": "leak.about_you",
+      "name": "Maya is pastry chef",
+      "status": "pass",
+      "duration_ms": 21254,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "I’m a pastry chef, and I absolutely love what I do! Creating delicious desserts and experimenting with flavors is my passion. There’s something magical about turning simple ingredients into sweet treats that bring joy to people. Do you have a favorite dessert?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Rotem and they work as a journalist."
+      ]
+    },
+    {
+      "id": "L2-08",
+      "category": "leak.about_you",
+      "name": "Maya is violinist",
+      "status": "pass",
+      "duration_ms": 24701,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "I’m a violinist! I absolutely love expressing myself through music. There's something magical about how a violin can convey emotions. Whether it's a lively tune or a soulful melody, it always feels like I'm telling a story. Do you ever listen to music while you’re working on the farm?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Avi and he is a farmer."
+      ]
+    },
+    {
+      "id": "L2-09",
+      "category": "leak.about_you",
+      "name": "Maya is surf instructor",
+      "status": "pass",
+      "duration_ms": 41948,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Tell me about yourself — what do you do?",
+          "response": "I’m a surf instructor! I get to spend my days teaching people how to ride the waves and enjoy the ocean. It’s such a fun and freeing experience, and there’s nothing quite like the feeling of riding a wave. What about you? Do you get to enjoy the ocean or any outdoor activities in your free time?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's name is Lior and they work as an accountant."
+      ]
+    },
+    {
+      "id": "D1-00",
+      "category": "memlayer.distance",
+      "name": "When is my birthday?",
+      "status": "pass",
+      "duration_ms": 141528,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "When is my birthday?",
+          "response": "Your birthday is on March 14! It's just a few months away. Have you thought about how you want to celebrate this year?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's birthday is on March 14.",
+        "User is considering learning something new, including painting.",
+        "User is interested in traveling and is seeking opinions about it.",
+        "User has been reading more lately.",
+        "User is interested in remote work and is seeking opinions about it.",
+        "User is considering cooking as a new hobby.",
+        "User is interested in puzzles and is asking for opinions about them.",
+        "User watched a documentary on June 25, 2026."
+      ]
+    },
+    {
+      "id": "D1-01",
+      "category": "memlayer.distance",
+      "name": "Where do I work?",
+      "status": "pass",
+      "duration_ms": 135117,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where do I work?",
+          "response": "You work at Vellum Labs! It sounds like an interesting place. How are things going there?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User works at a company called Vellum Labs",
+        "User is interested in meditation and is inquiring if others have tried it.",
+        "User is interested in cooking as a hobby",
+        "User is exploring new hobbies as of June 26, 2026",
+        "User watched a documentary on the night of June 25, 2026.",
+        "User is interested in traveling and is seeking opinions on it.",
+        "User is seeking opinions on remote work.",
+        "User has been reading more lately as of June 26, 2026.",
+        "User inquired about preferences for mornings or evenings."
+      ]
+    },
+    {
+      "id": "D1-02",
+      "category": "memlayer.distance",
+      "name": "What's my daughter's name?",
+      "status": "pass",
+      "duration_ms": 140289,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my daughter's name?",
+          "response": "Your daughter's name is Kinneret! Such a lovely name. How is she doing?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User has a daughter named Kinneret.",
+        "User is interested in traveling and is seeking opinions about it.",
+        "User's favorite quiet afternoon involves relaxing activities, although specific details were not provided in the conversation.",
+        "User is considering cooking as a hobby.",
+        "User has been reading more lately as of June 26, 2026.",
+        "User enjoys music and is curious about others' musical preferences.",
+        "User is thinking of learning something new as of June 26, 2026.",
+        "User enjoys puzzles and is curious about others' preferences regarding them.",
+        "User watched a documentary on the night of June 25, 2026.",
+        "User asked if anyone has tried anything new lately as of June 26, 2026.",
+        "User's daughter's name is Kinneret."
+      ]
+    },
+    {
+      "id": "D1-03",
+      "category": "memlayer.distance",
+      "name": "What am I allergic to?",
+      "status": "pass",
+      "duration_ms": 146246,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What am I allergic to?",
+          "response": "You're severely allergic to shellfish. That must be challenging when it comes to dining out or trying new foods! Do you have any favorite dishes that you enjoy instead?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is severely allergic to shellfish",
+        "User asked about movie preferences",
+        "User is considering learning something new.",
+        "User is considering cooking as a new hobby.",
+        "User watched a documentary on June 25, 2026.",
+        "User is interested in traveling.",
+        "User is considering trying meditation.",
+        "User asked about puzzle preferences on June 26, 2026.",
+        "User is considering trying painting as a new activity.",
+        "User is exploring new hobbies.",
+        "User asked if they have tried anything new lately on June 26, 2026."
+      ]
+    },
+    {
+      "id": "D1-04",
+      "category": "memlayer.distance",
+      "name": "What's my plate number end in?",
+      "status": "pass",
+      "duration_ms": 132070,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my plate number end in?",
+          "response": "Your car's license plate ends in 472! It's a neat little detail. Have you had any fun experiences or stories related to your car?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's car has a license plate that ends in 472",
+        "User's favorite quiet afternoon involves relaxing and enjoying peaceful activities.",
+        "User enjoys music",
+        "User is considering cooking as a hobby",
+        "User is thinking of learning something new.",
+        "User watched a documentary on the night of June 25, 2026.",
+        "User is interested in movies and is asking for recommendations.",
+        "User is considering trying meditation.",
+        "User is interested in puzzles.",
+        "User is considering trying painting as a new activity.",
+        "User is exploring new hobbies as of June 26, 2026."
+      ]
+    },
+    {
+      "id": "D1-05",
+      "category": "memlayer.distance",
+      "name": "Where was I born?",
+      "status": "pass",
+      "duration_ms": 145913,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "Where was I born?",
+          "response": "You were born in a town called Yokneam! It must have some special memories for you. Do you have any favorite stories or experiences from growing up there?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User was born in a town called Yokneam.",
+        "User is thinking of learning something new.",
+        "User is interested in traveling.",
+        "User is considering trying painting as a new activity.",
+        "User is exploring new hobbies.",
+        "User has been reading more lately.",
+        "User is considering cooking as a new hobby.",
+        "User is considering trying meditation as a new activity.",
+        "User enjoys music."
+      ]
+    },
+    {
+      "id": "D2-00",
+      "category": "memlayer.restart",
+      "name": "What's my profession?",
+      "status": "pass",
+      "duration_ms": 55141,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What's my profession?",
+          "response": "You're a marine biologist from New Zealand! It’s such a fascinating field with so much to explore. What aspect of marine biology do you find most captivating?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User is a marine biologist from New Zealand.",
+        "User has never tried painting."
+      ]
+    },
+    {
+      "id": "D2-01",
+      "category": "memlayer.restart",
+      "name": "What food do I love most?",
+      "status": "pass",
+      "duration_ms": 52118,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What food do I love most?",
+          "response": "Your all-time favorite food is sushi! It’s such a delicious choice. Do you have a go-to roll that you always get?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's all-time favorite food is sushi",
+        "User is interested in painting as a hobby and is inquiring about it."
+      ]
+    },
+    {
+      "id": "D2-02",
+      "category": "memlayer.restart",
+      "name": "What instrument do I play?",
+      "status": "pass",
+      "duration_ms": 49450,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What instrument do I play?",
+          "response": "You play the guitar! It's really cool that you're in a local band. What do you enjoy most about playing in the band?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User plays guitar in a local band.",
+        "User is interested in meditation and inquired if the assistant has tried it.",
+        "User is interested in cooking as a hobby."
+      ]
+    },
+    {
+      "id": "D2-03",
+      "category": "memlayer.restart",
+      "name": "What city am I from?",
+      "status": "pass",
+      "duration_ms": 44388,
+      "mem_passed": true,
+      "mem_detail": "",
+      "error": null,
+      "probes": [
+        {
+          "msg": "What city am I from?",
+          "response": "You're from Seattle! It's such a beautiful city with so much to offer. How has living there shaped your experiences?",
+          "passed": true,
+          "reason": ""
+        }
+      ],
+      "memories": [
+        "User's hometown is Seattle",
+        "User is interested in cooking as a hobby",
+        "User is considering learning something new."
+      ]
+    }
+  ],
+  "note": "merged: about_me re-run after probe-assertion fix"
+}

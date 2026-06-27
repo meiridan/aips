@@ -457,6 +457,162 @@ def costs(
 
 
 @app.command()
+def simulate(
+    persona: str = typer.Option(..., "--persona", help="Persona key (e.g. lonely_dev)."),
+    days: int = typer.Option(30, "--days"),
+    seed: int = typer.Option(42, "--seed"),
+    output: str = typer.Option(None, "--output", help="Path to write the run JSON."),
+) -> None:
+    """Run a multi-day simulated relationship and save the transcript (P4.6)."""
+
+    async def _run():
+        from tests.simulator.run_simulation import simulate_relationship
+
+        def _progress(day: int, total: int) -> None:
+            typer.echo(f"  Day {day + 1}/{total} ✓", nl=False)
+            typer.echo("\r", nl=False)
+
+        sim = await simulate_relationship(persona, days=days, seed=seed, progress=_progress)
+        out = output or f"./sims/{persona}_{seed}_{days}d.json"
+        sim.to_json(out)
+        return sim, out
+
+    typer.echo(f"Simulating {persona} for {days} days (seed {seed})...")
+    sim, out = _run_with_dispose(_run)
+    typer.echo("")
+    typer.echo(
+        f"Total: {len(sim.transcript)} messages, ${sim.cost_usd:.2f} in LLM costs"
+    )
+    typer.echo(f"Saved to {out}")
+
+
+@app.command()
+def evaluate(
+    path: str = typer.Argument(..., help="Path to a simulation JSON from `maya simulate`."),
+) -> None:
+    """Judge a saved simulation and record the scores (P4.6/P4.7)."""
+
+    async def _run():
+        from tests.simulator.evaluate import evaluate_simulation
+        from tests.simulator.regression import insert_eval_run
+        from tests.simulator.run_simulation import SimulationResult
+
+        sim = SimulationResult.from_json(path)
+        score = await evaluate_simulation(sim)
+        await insert_eval_run(
+            sim.persona, days=sim.days, seed=sim.seed, score=score,
+            transcript_path=path, cost_usd=sim.cost_usd,
+        )
+        return sim, score
+
+    sim, score = _run_with_dispose(_run)
+    typer.echo(f"═══ Evaluation: {sim.persona}, {sim.days} days ═══")
+    for dim in (
+        "feels_alive", "feels_consistent", "feels_emotionally_intelligent",
+        "feels_like_real_relationship", "memory_recall_quality",
+    ):
+        typer.echo(f"{dim}: {getattr(score, dim):.1f} / 10")
+    if score.standout_moments:
+        typer.echo("\nStandout moments:")
+        for m in score.standout_moments:
+            typer.echo(f"- {m}")
+    if score.failure_modes:
+        typer.echo("\nFailure modes:")
+        for m in score.failure_modes:
+            typer.echo(f"- {m}")
+
+
+@app.command(name="evaluate-suite")
+def evaluate_suite(
+    personas: str = typer.Option("all", "--personas", help="'all' or comma-separated keys."),
+    days: int = typer.Option(30, "--days"),
+    seed: int = typer.Option(42, "--seed"),
+    fail_on_regression: bool = typer.Option(
+        False, "--fail-on-regression",
+        help="Exit non-zero if any score drops >1.0 vs the persona's last run (P4.8).",
+    ),
+) -> None:
+    """Run + judge every persona, then aggregate (P4.6/P4.8)."""
+
+    async def _run():
+        from tests.simulator.evaluate import evaluate_simulation
+        from tests.simulator.personas import PERSONAS
+        from tests.simulator.regression import (
+            find_regressions,
+            insert_eval_run,
+            latest_run,
+        )
+        from tests.simulator.run_simulation import simulate_relationship
+
+        keys = list(PERSONAS) if personas == "all" else [p.strip() for p in personas.split(",")]
+        results = []
+        for key in keys:
+            typer.echo(f"▶ {key}...")
+            # Capture the prior baseline BEFORE recording the new run.
+            prev = await latest_run(key)
+            baseline = prev.scores if prev is not None else None
+            sim = await simulate_relationship(key, days=days, seed=seed)
+            out = f"./sims/{key}_{seed}_{days}d.json"
+            sim.to_json(out)
+            score = await evaluate_simulation(sim)
+            await insert_eval_run(
+                key, days=sim.days, seed=sim.seed, score=score,
+                transcript_path=out, cost_usd=sim.cost_usd,
+            )
+            results.append((key, score, sim.cost_usd, find_regressions(baseline, score)))
+        return results
+
+    results = _run_with_dispose(_run)
+    typer.echo("\n═══ Suite summary ═══")
+    total_cost = 0.0
+    regressed = False
+    for key, score, cost, regs in results:
+        typer.echo(
+            f"{key}: alive {score.feels_alive:.1f} | consistent {score.feels_consistent:.1f} "
+            f"| EQ {score.feels_emotionally_intelligent:.1f} | "
+            f"relationship {score.feels_like_real_relationship:.1f} | "
+            f"memory {score.memory_recall_quality:.1f}  (${cost:.2f})"
+        )
+        for r in regs:
+            regressed = True
+            typer.secho(
+                f"    ✗ REGRESSION {r['dimension']}: {r['base']:.1f} → "
+                f"{r['candidate']:.1f} ({r['delta']:+.1f})",
+                fg="red",
+            )
+        total_cost += cost
+    typer.echo(f"\nTotal cost: ${total_cost:.2f}")
+    if fail_on_regression and regressed:
+        raise typer.Exit(code=1)
+
+
+@app.command(name="evaluate-compare")
+def evaluate_compare(
+    base: str = typer.Option(..., "--base", help="Base git SHA."),
+    candidate: str = typer.Option(..., "--candidate", help="Candidate git SHA."),
+) -> None:
+    """Diff stored eval scores between two git SHAs (P4.7)."""
+
+    async def _run():
+        from tests.simulator.regression import compare_runs
+
+        return await compare_runs(base, candidate)
+
+    rows = _run_with_dispose(_run)
+    if not rows:
+        typer.secho("No overlapping personas between those SHAs.", fg="yellow")
+        return
+    typer.echo("═══ Comparison ═══")
+    typer.echo(f"{'':40} {base[:7]:>8} {candidate[:7]:>8}     Δ")
+    for r in rows:
+        mark = " ✗ REGRESSION" if r["regression"] else (" ✓" if r["delta"] >= 0 else "")
+        typer.echo(
+            f"{r['persona_dim']:40} {r['base']:8.1f} {r['candidate']:8.1f}  "
+            f"{r['delta']:+5.1f}{mark}"
+        )
+
+
+@app.command()
 def web(
     port: int = typer.Option(8000, "--port"),
     host: str = typer.Option("0.0.0.0", "--host"),

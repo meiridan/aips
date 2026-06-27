@@ -54,6 +54,36 @@ class RelationshipService:
             state.days_known = max(state.days_known, (now - created).days)
             await session.commit()
 
+    async def advance_days(self, companion_id: uuid.UUID, n: int = 1) -> None:
+        """Advance the *simulated* day counter by `n`.
+
+        The simulator compresses many days into seconds of wall-clock, so the
+        real-time `days_known` math in `increment_interaction` never moves.
+        This bumps it directly. No-op if the relationship row doesn't exist."""
+        async with self._sessionmaker() as session:
+            state = await self._fetch(session, companion_id)
+            if state is None:
+                return
+            state.days_known += n
+            await session.commit()
+
+    async def get_events(
+        self, companion_id: uuid.UUID, limit: int = 200
+    ) -> list[RelationshipEvent]:
+        """Relationship events, newest first (for snapshots + eval samples)."""
+        async with self._sessionmaker() as session:
+            rows = (
+                await session.scalars(
+                    select(RelationshipEvent)
+                    .where(RelationshipEvent.companion_id == companion_id)
+                    .order_by(RelationshipEvent.occurred_at.desc())
+                    .limit(limit)
+                )
+            ).all()
+            for ev in rows:
+                session.expunge(ev)
+            return list(rows)
+
     async def log_event(
         self,
         companion_id: uuid.UUID,

@@ -262,3 +262,26 @@ class CompanionCommitment(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+# ───────────────────────── Phase 4: eval regression tracking (§P4.7) ──────────
+
+
+class EvalRun(Base):
+    __tablename__ = "eval_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
+    git_sha: Mapped[str] = mapped_column(Text, nullable=False)
+    persona: Mapped[str] = mapped_column(Text, nullable=False)
+    days: Mapped[int] = mapped_column(Integer, nullable=False)
+    seed: Mapped[int] = mapped_column(Integer, nullable=False)
+    scores: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    failure_modes: Mapped[dict] = mapped_column(JSONB, server_default="[]")
+    standout_moments: Mapped[dict] = mapped_column(JSONB, server_default="[]")
+    transcript_path: Mapped[str | None] = mapped_column(Text)
+    cost_usd: Mapped[float | None] = mapped_column(Numeric(10, 4))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

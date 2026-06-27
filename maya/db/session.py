@@ -18,7 +18,12 @@ _sessionmaker: async_sessionmaker[AsyncSession] | None = None
 def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
-        _engine = create_async_engine(get_settings().database_url, echo=False, future=True)
+        _engine = create_async_engine(
+            get_settings().database_url,
+            echo=False,
+            future=True,
+            pool_pre_ping=True,  # discard stale connections before use (Neon closes idle ones)
+        )
     return _engine
 
 

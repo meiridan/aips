@@ -73,6 +73,17 @@ VAR_ARGS=(
 if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
   VAR_ARGS+=(--set "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
 fi
+# Telegram channel (optional). All three needed for the bot to come online; the
+# app registers the webhook at startup when token + base URL are present.
+if [[ -n "${TELEGRAM_BOT_TOKEN:-}" ]]; then
+  VAR_ARGS+=(--set "TELEGRAM_BOT_TOKEN=$TELEGRAM_BOT_TOKEN")
+fi
+if [[ -n "${TELEGRAM_WEBHOOK_SECRET:-}" ]]; then
+  VAR_ARGS+=(--set "TELEGRAM_WEBHOOK_SECRET=$TELEGRAM_WEBHOOK_SECRET")
+fi
+if [[ -n "${PUBLIC_BASE_URL:-}" ]]; then
+  VAR_ARGS+=(--set "PUBLIC_BASE_URL=$PUBLIC_BASE_URL")
+fi
 railway variables --service "$SERVICE_NAME" "${VAR_ARGS[@]}" < /dev/null
 
 # Ensure a public domain exists (idempotent — prints existing if already set).

@@ -1,4 +1,4 @@
-.PHONY: dev test db.migrate db.reset chat install web phase2-runner phase2-restart deploy.provision deploy.smoke deploy.redeploy deploy.logs deploy.teardown
+.PHONY: dev test db.migrate db.reset chat install web phase2-runner phase2-restart deploy.provision deploy.smoke deploy.redeploy deploy.logs deploy.teardown eval eval.behaviors
 
 install:
 	uv sync
@@ -18,6 +18,17 @@ db.reset:
 
 test:
 	uv run pytest
+
+# Phase 4 continuous eval (P4.8). Expensive (~$50, real LLM calls + 30-day sims).
+# [DECISION] Run on PRs labelled `eval-required` or a weekly cron — NOT every
+# push. Runs all personas, judges, and fails if any score regresses > 1.0 vs the
+# last recorded run for the same SHA-less baseline.
+eval:
+	uv run maya evaluate-suite --personas all --days 30 --fail-on-regression
+
+# Targeted behavior assertions only (opt-in eval marker). Cheaper than `eval`.
+eval.behaviors:
+	uv run pytest -m eval tests/simulator/test_behaviors.py
 
 chat:
 	uv run maya chat

@@ -48,3 +48,9 @@ packages = ["maya"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+# Eval/behavior tests make real, paid LLM calls + run multi-day sims. Skip them
+# by default; opt in with `pytest -m eval` (the CLI -m overrides this default).
+addopts = "-m 'not eval'"
+markers = [
+    "eval: expensive LLM-as-judge / multi-day simulation tests (paid, opt-in)",
+]

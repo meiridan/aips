@@ -226,3 +226,27 @@ def test_token_budget_trips():
 def test_token_budget_ok_for_normal_prompt():
     # Should not raise.
     _build()
+
+
+# ───────────────────── bug-fix regression tests ──────────────────────────
+
+
+def test_prompt_deflects_uninvented_personal_details():
+    # Bug 2: Maya used to hallucinate age/location when backstory lacked them.
+    # Prompt must instruct her to deflect rather than invent.
+    sys = _build()[0]["content"]
+    assert "private" in sys
+    assert "deflect" in sys.lower() or "keep some things" in sys
+
+
+def test_prompt_instructs_recall_from_recent_conversation():
+    # Bug 6: memory-recall instruction was missing from Phase-3 template.
+    sys = _build()[0]["content"]
+    assert "recent conversation" in sys.lower()
+
+
+def test_prompt_guards_against_abrupt_tone_shift_after_vulnerability():
+    # Bug 5: Maya pivoted to intimacy without acknowledging prior vulnerability.
+    sys = _build()[0]["content"]
+    assert "vulnerable" in sys.lower() or "crisis" in sys.lower()
+    assert "acknowledgment" in sys.lower() or "honour" in sys.lower() or "honor" in sys.lower()

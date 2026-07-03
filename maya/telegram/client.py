@@ -43,42 +43,48 @@ class TelegramClient:
         # `verify=False` mirrors the litellm SSL workaround (maya/llm/service.py)
         # for environments behind TLS-inspecting proxies (e.g. Zscaler).
         self._verify = verify
+        # One reused client → keep-alive connections, no TLS handshake per send.
+        self._client = httpx.AsyncClient(
+            base_url=f"{API_BASE}/bot{token}",
+            verify=verify,
+            timeout=30,
+        )
 
-    def _url(self, method: str) -> str:
-        return f"{API_BASE}/bot{self._token}/{method}"
+    def _path(self, method: str) -> str:
+        return f"/{method}"
 
     async def send_message(self, chat_id: int, text: str) -> None:
-        async with httpx.AsyncClient(verify=self._verify, timeout=30) as client:
-            for piece in _chunk(text):
-                resp = await client.post(
-                    self._url("sendMessage"),
-                    json={"chat_id": chat_id, "text": piece},
+        for piece in _chunk(text):
+            resp = await self._client.post(
+                self._path("sendMessage"),
+                json={"chat_id": chat_id, "text": piece},
+            )
+            if resp.status_code != 200:
+                log.warning(
+                    "telegram_send_failed",
+                    status=resp.status_code,
+                    body=resp.text[:200],
                 )
-                if resp.status_code != 200:
-                    log.warning(
-                        "telegram_send_failed",
-                        status=resp.status_code,
-                        body=resp.text[:200],
-                    )
 
     async def send_chat_action(self, chat_id: int, action: str = "typing") -> None:
-        async with httpx.AsyncClient(verify=self._verify, timeout=10) as client:
-            try:
-                await client.post(
-                    self._url("sendChatAction"),
-                    json={"chat_id": chat_id, "action": action},
-                )
-            except httpx.HTTPError:  # typing indicator is best-effort
-                pass
+        try:
+            await self._client.post(
+                self._path("sendChatAction"),
+                json={"chat_id": chat_id, "action": action},
+                timeout=10,
+            )
+        except httpx.HTTPError:  # typing indicator is best-effort
+            pass
 
     async def set_webhook(self, url: str, secret: str) -> None:
-        async with httpx.AsyncClient(verify=self._verify, timeout=30) as client:
-            resp = await client.post(
-                self._url("setWebhook"),
-                json={"url": url, "secret_token": secret},
-            )
-            log.info("telegram_set_webhook", url=url, status=resp.status_code)
+        resp = await self._client.post(
+            self._path("setWebhook"),
+            json={"url": url, "secret_token": secret},
+        )
+        log.info("telegram_set_webhook", url=url, status=resp.status_code)
 
     async def delete_webhook(self) -> None:
-        async with httpx.AsyncClient(verify=self._verify, timeout=30) as client:
-            await client.post(self._url("deleteWebhook"))
+        await self._client.post(self._path("deleteWebhook"))
+
+    async def aclose(self) -> None:
+        await self._client.aclose()

@@ -39,22 +39,23 @@ class _FakeResponse:
 
 
 class _FakeAsyncClient:
-    """Minimal httpx.AsyncClient stand-in capturing posts."""
+    """Minimal httpx.AsyncClient stand-in capturing posts.
+
+    The real client is built once in TelegramClient.__init__ with a base_url
+    holding the bot token; sends post relative paths against it.
+    """
 
     calls: list[dict] = []
 
-    def __init__(self, *args, **kwargs) -> None:
-        pass
+    def __init__(self, *args, base_url: str = "", **kwargs) -> None:
+        self.base_url = base_url
 
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, *exc):
-        return False
-
-    async def post(self, url, json=None):
-        _FakeAsyncClient.calls.append({"url": url, "json": json})
+    async def post(self, url, json=None, **kwargs):
+        _FakeAsyncClient.calls.append({"base_url": self.base_url, "url": url, "json": json})
         return _FakeResponse()
+
+    async def aclose(self) -> None:
+        pass
 
 
 @pytest.mark.asyncio
@@ -65,7 +66,8 @@ async def test_send_message_posts_to_bot_api(monkeypatch):
     await tc.send_message(42, "hi there")
     assert len(_FakeAsyncClient.calls) == 1
     call = _FakeAsyncClient.calls[0]
-    assert call["url"].endswith("/botTOKEN123/sendMessage")
+    assert call["base_url"].endswith("/botTOKEN123")
+    assert call["url"] == "/sendMessage"
     assert call["json"] == {"chat_id": 42, "text": "hi there"}
 
 
@@ -111,13 +113,21 @@ async def test_handle_update_routes_text_to_orchestrator(monkeypatch):
     monkeypatch.setattr(
         service_mod, "resolve_singleton", AsyncMock(return_value=(uid, cid, False, None))
     )
-    svc.orchestrator.handle_message.return_value = "Maya reply"
+
+    # The reply is now delivered via the on_reply_done callback (before
+    # post-processing), so drive that callback from the mocked orchestrator.
+    async def _fake_handle(u, c, text, on_reply_done=None):
+        if on_reply_done is not None:
+            await on_reply_done("Maya reply")
+        return "Maya reply"
+
+    svc.orchestrator.handle_message.side_effect = _fake_handle
 
     await svc.handle_update(
         {"message": {"chat": {"id": 99}, "from": {"first_name": "Sam"}, "text": "hey"}}
     )
 
-    svc.orchestrator.handle_message.assert_awaited_once_with(uid, cid, "hey")
+    assert svc.orchestrator.handle_message.await_args.args == (uid, cid, "hey")
     svc.client.send_message.assert_awaited_with(99, "Maya reply")
 
 

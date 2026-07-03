@@ -55,15 +55,24 @@ class TelegramService:
             return  # greeting already covers a brand-new companion
 
         await self.client.send_chat_action(int(chat_id), "typing")
+        sent = {"reply": False}
+
+        async def deliver(reply: str) -> None:
+            # Fires the instant the reply is ready — BEFORE post-processing — so
+            # the user isn't waiting on bookkeeping (memory extract, stage eval…).
+            sent["reply"] = True
+            await self.client.send_message(int(chat_id), reply)
+
         try:
-            reply = await self.orchestrator.handle_message(uid, cid, text)
+            await self.orchestrator.handle_message(uid, cid, text, on_reply_done=deliver)
         except Exception as exc:  # noqa: BLE001 - never crash the webhook
             log.error("telegram_turn_failed", chat_id=chat_id, error=str(exc))
-            await self.client.send_message(
-                int(chat_id), "Sorry, I glitched for a second. Say that again?"
-            )
-            return
-        await self.client.send_message(int(chat_id), reply)
+            # Only apologize if the reply never went out; a post-processing
+            # failure after delivery must not spam a second message.
+            if not sent["reply"]:
+                await self.client.send_message(
+                    int(chat_id), "Sorry, I glitched for a second. Say that again?"
+                )
 
 
 _service: TelegramService | None = None

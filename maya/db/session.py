@@ -23,6 +23,9 @@ def get_engine() -> AsyncEngine:
             echo=False,
             future=True,
             pool_pre_ping=True,  # discard stale connections before use (Neon closes idle ones)
+            pool_size=10,  # covers the prepare gather (7 tasks) + moment + cost-log writes
+            max_overflow=5,
+            pool_recycle=1800,  # cycle before Neon kills idle conns → fewer pre-ping misses
         )
     return _engine
 

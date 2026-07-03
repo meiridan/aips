@@ -2,30 +2,79 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from sqlalchemy import select
+from sqlalchemy import select, text
 
+from maya.companions.singleton import resolve_singleton
 from maya.config import get_settings
-from maya.telegram.service import get_telegram_service
 from maya.conversation.orchestrator import (
     MEMORY_LIMIT,
     RECENT_LIMIT,
     Orchestrator,
 )
-from maya.companions.singleton import resolve_singleton
 from maya.db.models import Message
-from maya.db.session import get_sessionmaker
-from maya.logging import configure_logging
+from maya.db.session import get_engine, get_sessionmaker
+from maya.logging import configure_logging, get_logger
+from maya.telegram.service import get_telegram_service
+
+log = get_logger("maya.web")
+
+# Full history is only replayed on WS (re)connect; the UI reconnects every 2s on
+# drop, so cap the replay. Per-turn context still uses RECENT_LIMIT.
+HISTORY_REPLAY_LIMIT = 200
+
+# One shared orchestrator for all WebSocket connections. Building it runs Mem0's
+# slow sync init (opens its own Neon connection); doing it per-connect blocked
+# the event loop on every reconnect. Same rationale as the Telegram channel.
+_orchestrator: Orchestrator | None = None
+
+
+def get_orchestrator() -> Orchestrator:
+    global _orchestrator
+    if _orchestrator is None:
+        _orchestrator = Orchestrator()
+    return _orchestrator
 
 # Re-exported so callers/tests can confirm the web path uses the shared
 # orchestrator constants instead of hardcoded context limits (regression guard
 # for the old 3/10 duplication bug — now structurally impossible after the
 # single-orchestrator refactor).
 __all__ = ["app", "MEMORY_LIMIT", "RECENT_LIMIT"]
+
+async def _warmup() -> None:
+    """Pre-pay first-request costs so the first turn after boot/idle is fast.
+
+    Wakes Neon from scale-to-zero, primes the connection pool, warms the
+    singleton/companion/user-name caches, and builds the shared orchestrator
+    (Mem0 init) off the request path. Best-effort — a hiccup here must not
+    block boot."""
+    try:
+        engine = get_engine()
+
+        async def _ping() -> None:
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+
+        # Open a few connections concurrently to prime the pool + wake Neon.
+        await asyncio.gather(*[_ping() for _ in range(5)])
+
+        # Warm identity + companion + user_name caches via one real turn's reads.
+        sm = get_sessionmaker()
+        user_id, companion_id, _created, _first = await resolve_singleton(sm)
+        orch = get_orchestrator()
+        await asyncio.gather(
+            orch._load_companion(companion_id),
+            orch._user_name(user_id),
+        )
+        log.info("warmup_complete")
+    except Exception as exc:  # noqa: BLE001 - warmup is best-effort
+        log.warning("warmup_failed", error=str(exc))
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -35,6 +84,7 @@ async def lifespan(_app: FastAPI):
     if service is not None and settings.public_base_url:
         url = f"{settings.public_base_url.rstrip('/')}/telegram/webhook"
         await service.client.set_webhook(url, settings.telegram_webhook_secret)
+    await _warmup()
     yield
 
 
@@ -613,14 +663,17 @@ async def websocket_endpoint(websocket: WebSocket):
         "companion_id": str(companion_id)
     })
     
-    # Replay full message history in chronological order
+    # Replay recent message history in chronological order (capped — see
+    # HISTORY_REPLAY_LIMIT). Fetch newest-first with a LIMIT, then reverse.
     async with sm() as session:
         stmt = (
             select(Message)
             .where(Message.companion_id == companion_id)
-            .order_by(Message.created_at.asc())
+            .order_by(Message.created_at.desc())
+            .limit(HISTORY_REPLAY_LIMIT)
         )
         history = list((await session.scalars(stmt)).all())
+        history.reverse()
 
     for msg in history:
         await websocket.send_json({
@@ -631,7 +684,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     await websocket.send_json({"type": "history_end"})
 
-    orch = Orchestrator()
+    orch = get_orchestrator()
 
     async def on_step(category: str, label: str, data: dict) -> None:
         # The orchestrator emits its own "received" step; skip the echo here.

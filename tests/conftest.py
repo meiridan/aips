@@ -48,6 +48,17 @@ DB_AVAILABLE = _db_available()
 db_required = pytest.mark.skipif(not DB_AVAILABLE, reason="Postgres not reachable")
 
 
+@pytest.fixture(autouse=True)
+def _clear_runtime_cache():
+    """Reset the process-local singleton/companion/user-name caches per test so
+    module-global state can't leak between tests (single-user app caches)."""
+    from maya import runtime_cache
+
+    runtime_cache.clear()
+    yield
+    runtime_cache.clear()
+
+
 @pytest.fixture(scope="session")
 def _ensure_test_db() -> None:
     """Create the maya_test database + pgvector extension once per session."""

@@ -13,6 +13,7 @@ from typing import Any
 
 from sqlalchemy import select
 
+from maya import runtime_cache
 from maya.companions.genesis import run_genesis
 from maya.db.models import Companion, User
 from maya.db.session import get_sessionmaker
@@ -25,7 +26,13 @@ async def resolve_singleton(
 
     Picks the oldest companion. If none exists yet, creates a user + companion
     and runs genesis; `created` is True and `first_message` is Maya's opener.
+    The resolved (user_id, companion_id) is immutable per process, so it is
+    cached after the first lookup (single-user app).
     """
+    cached = runtime_cache.get_singleton()
+    if cached is not None:
+        return cached[0], cached[1], False, None
+
     sm = sessionmaker or get_sessionmaker()
     async with sm() as session:
         comp = (
@@ -34,6 +41,7 @@ async def resolve_singleton(
             )
         ).scalar_one_or_none()
         if comp is not None:
+            runtime_cache.set_singleton(comp.user_id, comp.id)
             return comp.user_id, comp.id, False, None
 
         user = User(name="Maya User")
@@ -45,4 +53,5 @@ async def resolve_singleton(
         user_id, companion_id = user.id, comp.id
 
     result = await run_genesis(companion_id, sessionmaker=sm)
+    runtime_cache.set_singleton(user_id, companion_id)
     return user_id, companion_id, True, result.first_message

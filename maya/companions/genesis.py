@@ -158,6 +158,11 @@ async def run_genesis(
             importance=float(c.get("importance", 0.5)),
         )
 
+    # Genesis rewrote backstory/personality — drop any cached copy of the row.
+    from maya import runtime_cache
+
+    runtime_cache.invalidate_companion(companion_id)
+
     log.info(
         "genesis_complete",
         companion=comp_name,

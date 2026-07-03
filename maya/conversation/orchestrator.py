@@ -13,14 +13,17 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import time
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import dataclass
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from maya import runtime_cache
 from maya.companions.commitments import CommitmentService
 from maya.companions.templates import get_template
 from maya.conversation.moment_analyzer import (
@@ -38,8 +41,11 @@ from maya.db.models import Companion, Message
 from maya.db.session import get_sessionmaker
 from maya.emotional.service import EmotionalService
 from maya.llm.service import LLMService
+from maya.logging import get_logger
 from maya.memory.service import MemoryService
 from maya.relationship.service import RelationshipService
+
+log = get_logger("maya.orchestrator")
 
 # Re-export for callers (web.py) that imported from here previously.
 __all__ = [
@@ -71,6 +77,16 @@ class _TurnCtx:
     prompt: list[dict]
     moment_task: asyncio.Task
     on_step: StepCallback | None
+    spans: dict[str, int] = field(default_factory=dict)
+
+
+async def _timed(spans: dict[str, int], name: str, coro: Coroutine[Any, Any, Any]) -> Any:
+    """Await `coro`, recording its wall time into spans[f"{name}_ms"]."""
+    t = time.perf_counter()
+    try:
+        return await coro
+    finally:
+        spans[f"{name}_ms"] = int((time.perf_counter() - t) * 1000)
 
 
 async def _emit(on_step: StepCallback | None, category: str, label: str, data: dict) -> None:
@@ -113,13 +129,37 @@ class Orchestrator:
         companion_id: uuid.UUID,
         content: str,
         on_step: StepCallback | None = None,
+        on_reply_done: Callable[[str], Awaitable[None] | None] | None = None,
     ) -> str:
-        """Non-streaming turn (CLI / tests). Collects the full reply."""
-        ctx = await self._prepare(user_id, companion_id, content, on_step)
+        """Non-streaming turn (CLI / tests / Telegram). Collects the full reply.
+
+        `on_reply_done` (if given) is invoked the instant the reply is ready —
+        BEFORE post-processing — so a channel can deliver it without waiting on
+        bookkeeping. Post-processing is still awaited before returning
+        (Decision 2: no loss on disconnect)."""
+        spans: dict[str, int] = {}
+        turn_id = uuid.uuid4().hex[:8]
+        t_prep = time.perf_counter()
+        ctx = await self._prepare(user_id, companion_id, content, on_step, spans)
+        spans["prepare_ms"] = int((time.perf_counter() - t_prep) * 1000)
+
         await _emit(on_step, "llm", "🤖 Calling LLM (main tier)", {"messages": len(ctx.prompt)})
+        t_llm = time.perf_counter()
         response = await self.llm.chat(ctx.prompt, model_tier=self._default_tier)
+        spans["llm_ms"] = int((time.perf_counter() - t_llm) * 1000)
         await _emit(on_step, "llm", "✅ LLM response received", {"preview": response[:120]})
+
+        # Deliver the reply before bookkeeping runs (channels that pass this get
+        # the latency win; the reply is still saved/post-processed below).
+        if on_reply_done is not None:
+            res = on_reply_done(response)
+            if inspect.isawaitable(res):
+                await res
+
+        t_fin = time.perf_counter()
         await self._finalize(ctx, response)
+        spans["finalize_ms"] = int((time.perf_counter() - t_fin) * 1000)
+        log.info("turn_timing", turn_id=turn_id, channel="sync", **spans)
         return response
 
     async def stream_message(
@@ -138,12 +178,23 @@ class Orchestrator:
         then runs and is still awaited before the generator returns (Decision 2:
         no loss on disconnect).
         """
-        ctx = await self._prepare(user_id, companion_id, content, on_step)
+        spans: dict[str, int] = {}
+        turn_id = uuid.uuid4().hex[:8]
+        t_prep = time.perf_counter()
+        ctx = await self._prepare(user_id, companion_id, content, on_step, spans)
+        spans["prepare_ms"] = int((time.perf_counter() - t_prep) * 1000)
+
         await _emit(on_step, "llm", "🤖 Streaming LLM (main tier)", {"messages": len(ctx.prompt)})
         chunks: list[str] = []
+        t_llm = time.perf_counter()
+        first = True
         async for piece in self.llm.chat_stream(ctx.prompt, model_tier=self._default_tier):
+            if first:
+                spans["ttft_ms"] = int((time.perf_counter() - t_llm) * 1000)
+                first = False
             chunks.append(piece)
             yield piece
+        spans["stream_total_ms"] = int((time.perf_counter() - t_llm) * 1000)
         response = "".join(chunks)
         await _emit(on_step, "llm", "✅ Stream complete", {"chars": len(response)})
 
@@ -153,7 +204,10 @@ class Orchestrator:
             if inspect.isawaitable(res):
                 await res
 
+        t_fin = time.perf_counter()
         await self._finalize(ctx, response)
+        spans["finalize_ms"] = int((time.perf_counter() - t_fin) * 1000)
+        log.info("turn_timing", turn_id=turn_id, channel="web", **spans)
 
     async def _prepare(
         self,
@@ -161,36 +215,47 @@ class Orchestrator:
         companion_id: uuid.UUID,
         content: str,
         on_step: StepCallback | None,
+        spans: dict[str, int],
     ) -> _TurnCtx:
         """Steps 1–4: save user msg, gather context, kick off moment analysis
         concurrently, and build the prompt. Moment is OFF the critical path —
         the main LLM call starts with neutral guidance while the analyzer runs
-        in parallel and feeds post-processing (emotional state)."""
+        in parallel and feeds post-processing (emotional state).
+
+        The user-message save, every context read, and the user-name lookup all
+        run in ONE gather so the slowest leg (the embedding + pgvector search)
+        hides the DB round trips. The companion load is sequential ahead of the
+        gather only because emotional.get needs its baseline — and it is cached,
+        so it is ~0ms after the first turn."""
         await _emit(on_step, "step", "📥 Received user message", {"content": content[:100]})
 
-        # 1. Save user message.
-        async with self._sessionmaker() as session:
-            await self._save_message(session, companion_id, user_id, "user", content)
-            await session.commit()
-
-        # 2. Gather context in parallel.
+        # Companion first: emotional.get needs its baseline. Cached → ~0ms.
+        t = time.perf_counter()
         companion = await self._load_companion(companion_id)
+        spans["companion_ms"] = int((time.perf_counter() - t) * 1000)
         baseline = get_template(companion.template_id).baseline_emotional if companion else {}
-        async with self._sessionmaker() as session:
-            recent_task = self._recent_messages(session, companion_id, RECENT_LIMIT)
-            (
-                memories,
-                emotional,
-                relationship,
-                commitments,
-                recent,
-            ) = await asyncio.gather(
-                self.memory.search_relevant(content, user_id, companion_id, MEMORY_LIMIT),
-                self.emotional.get(companion_id, baseline=baseline),
-                self.relationship.get(companion_id, user_id),
-                self.commitments.get_recent(companion_id, limit=20),
-                recent_task,
-            )
+
+        # One gather: save + all context reads + user_name, fully overlapped.
+        t = time.perf_counter()
+        (
+            _saved,
+            memories,
+            emotional,
+            relationship,
+            commitments,
+            recent,
+            user_name,
+        ) = await asyncio.gather(
+            _timed(spans, "save", self._save_user_message(companion_id, user_id, content)),
+            _timed(spans, "memory",
+                   self.memory.search_relevant(content, user_id, companion_id, MEMORY_LIMIT)),
+            _timed(spans, "emotional", self.emotional.get(companion_id, baseline=baseline)),
+            _timed(spans, "relationship", self.relationship.get(companion_id, user_id)),
+            _timed(spans, "commitments", self.commitments.get_recent(companion_id, limit=20)),
+            _timed(spans, "recent", self._recent_messages_own(companion_id, RECENT_LIMIT)),
+            _timed(spans, "user_name", self._user_name(user_id)),
+        )
+        spans["gather_ms"] = int((time.perf_counter() - t) * 1000)
         hours_since = self._hours_since(getattr(relationship, "last_interaction_at", None))
         await _emit(on_step, "memory", f"✅ Gathered context ({len(memories)} memories)", {
             "memories": len(memories),
@@ -205,7 +270,6 @@ class Orchestrator:
 
         # 4. Build the rich prompt with neutral moment guidance so the main call
         # can start immediately. The real moment refines emotional state later.
-        user_name = await self._user_name(user_id)
         prompt = build_phase3(
             companion=companion,
             memories=memories,
@@ -217,6 +281,11 @@ class Orchestrator:
             user_name=user_name,
             hours_since_last=hours_since,
         )
+        # The save runs concurrently with the recent-messages query, so the new
+        # user turn may or may not be in `recent`. Guarantee it is the final
+        # message exactly once (ordering is no longer load-bearing).
+        if not (prompt and prompt[-1]["role"] == "user" and prompt[-1]["content"] == content):
+            prompt.append({"role": "user", "content": content})
         await _emit(on_step, "step", "🔨 Built Phase-3 prompt", {"messages": len(prompt)})
         return _TurnCtx(
             user_id=user_id,
@@ -226,6 +295,7 @@ class Orchestrator:
             prompt=prompt,
             moment_task=moment_task,
             on_step=on_step,
+            spans=spans,
         )
 
     async def _finalize(self, ctx: _TurnCtx, response: str) -> None:
@@ -325,6 +395,20 @@ class Orchestrator:
         await session.flush()
         return msg
 
+    async def _save_user_message(
+        self, companion_id: uuid.UUID, user_id: uuid.UUID, content: str
+    ) -> None:
+        """Own session, committed — safe to run concurrently in the prepare gather."""
+        async with self._sessionmaker() as session:
+            await self._save_message(session, companion_id, user_id, "user", content)
+            await session.commit()
+
+    async def _recent_messages_own(
+        self, companion_id: uuid.UUID, limit: int
+    ) -> list[Message]:
+        async with self._sessionmaker() as session:
+            return await self._recent_messages(session, companion_id, limit)
+
     async def _recent_messages(
         self, session: AsyncSession, companion_id: uuid.UUID, limit: int
     ) -> list[Message]:
@@ -339,18 +423,27 @@ class Orchestrator:
         return rows
 
     async def _load_companion(self, companion_id: uuid.UUID) -> Companion | None:
+        cached = runtime_cache.get_companion(companion_id)
+        if cached is not None:
+            return cached
         async with self._sessionmaker() as session:
             comp = await session.get(Companion, companion_id)
             if comp is not None:
                 session.expunge(comp)
+                runtime_cache.set_companion(companion_id, comp)
             return comp
 
     async def _user_name(self, user_id: uuid.UUID) -> str:
+        cached = runtime_cache.get_user_name(user_id)
+        if cached is not None:
+            return cached
         from maya.db.models import User
 
         async with self._sessionmaker() as session:
             user = await session.get(User, user_id)
-            return user.name if user else "him"
+            name = user.name if user else "him"
+            runtime_cache.set_user_name(user_id, name)
+            return name
 
     @staticmethod
     def _hours_since(last: datetime | None) -> float:

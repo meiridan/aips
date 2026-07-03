@@ -67,6 +67,7 @@ class LLMService:
                 "messages": messages,
                 "max_tokens": max_tokens,
                 "temperature": temperature,
+                "timeout": 30,  # bound tail latency; a hung provider falls over to the next
             }
             if json_mode:
                 kwargs["response_format"] = {"type": "json_object"}
@@ -125,6 +126,7 @@ class LLMService:
                     temperature=temperature,
                     stream=True,
                     stream_options={"include_usage": True},
+                    timeout=45,  # bound tail latency (fail-over only before first token)
                 )
                 async for chunk in stream:
                     chunks.append(chunk)

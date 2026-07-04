@@ -10,14 +10,16 @@ from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocke
 from fastapi.responses import HTMLResponse
 from sqlalchemy import select, text
 
+from maya.companions.settings import set_response_length
 from maya.companions.singleton import resolve_singleton
 from maya.config import get_settings
+from maya.conversation import response_length
 from maya.conversation.orchestrator import (
     MEMORY_LIMIT,
     RECENT_LIMIT,
     Orchestrator,
 )
-from maya.db.models import Message
+from maya.db.models import Companion, Message
 from maya.db.session import get_engine, get_sessionmaker
 from maya.logging import configure_logging, get_logger
 from maya.telegram.service import get_telegram_service
@@ -402,6 +404,15 @@ async def get_index():
         <div class="messages" id="messages">
         </div>
         <div class="input-area">
+            <div class="length-control" style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
+                <span style="font-size:12px;color:#888;">Reply length:</span>
+                <button type="button" class="len-btn" data-level="1" onclick="setLength(1)"
+                        style="padding:4px 10px;font-size:12px;background:#eee;color:#333;">Short</button>
+                <button type="button" class="len-btn" data-level="2" onclick="setLength(2)"
+                        style="padding:4px 10px;font-size:12px;background:#eee;color:#333;">Medium</button>
+                <button type="button" class="len-btn" data-level="3" onclick="setLength(3)"
+                        style="padding:4px 10px;font-size:12px;background:#eee;color:#333;">Long</button>
+            </div>
             <div class="input-container">
                 <input type="text" id="messageInput" placeholder="Type your message..." dir="auto" />
                 <button id="sendButton" onclick="sendMessage()">Send</button>
@@ -595,6 +606,25 @@ async def get_index():
             }, 60000);
         }
         
+        // Reply-length control.
+        function highlightLength(level) {
+            document.querySelectorAll('.len-btn').forEach(b => {
+                const active = Number(b.dataset.level) === Number(level);
+                b.style.background = active ? '#667eea' : '#eee';
+                b.style.color = active ? 'white' : '#333';
+            });
+        }
+        function setLength(level) {
+            fetch('/companion/response_length', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ level }),
+            }).then(r => r.json()).then(d => highlightLength(d.level)).catch(() => {});
+        }
+        // Reflect the current stored level on load.
+        fetch('/companion/response_length').then(r => r.json())
+            .then(d => highlightLength(d.level)).catch(() => highlightLength(2));
+
         // Enter key to send
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -642,6 +672,32 @@ async def telegram_webhook(
     # asyncio.create_task(service.handle_update(update)) and return immediately.
     await service.handle_update(update)
     return {"ok": True}
+
+
+@app.get("/companion/response_length")
+async def get_response_length() -> dict:
+    """Current reply-length level (1=short, 2=medium, 3=long) of the shared companion."""
+    sm = get_sessionmaker()
+    _uid, cid, _created, _first = await resolve_singleton(sm)
+    async with sm() as session:
+        comp = await session.get(Companion, cid)
+        level = response_length.normalize(
+            getattr(comp, "response_length", response_length.DEFAULT)
+        )
+    return {"level": level}
+
+
+@app.post("/companion/response_length")
+async def post_response_length(request: Request) -> dict:
+    """Set the shared companion's reply-length level (1|2|3)."""
+    body = await request.json()
+    level = response_length.parse(str(body.get("level")))
+    if level is None:
+        raise HTTPException(status_code=422, detail="level must be 1, 2, or 3")
+    sm = get_sessionmaker()
+    _uid, cid, _created, _first = await resolve_singleton(sm)
+    stored = await set_response_length(sm, cid, level)
+    return {"ok": True, "level": stored}
 
 
 @app.websocket("/ws")

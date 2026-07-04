@@ -65,6 +65,10 @@ class Companion(Base):
     # Phase 3: personality blob + generated backstory (filled by genesis).
     personality: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     backstory: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    # Reply-length preference: 1=short(~100w) 2=medium(~300w) 3=long(~1000w).
+    response_length: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="2"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

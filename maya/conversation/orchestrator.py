@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from maya import runtime_cache
 from maya.companions.commitments import CommitmentService
 from maya.companions.templates import get_template
+from maya.conversation import response_length
 from maya.conversation.moment_analyzer import (
     MomentAnalysis,
     MomentAnalyzer,
@@ -77,6 +78,7 @@ class _TurnCtx:
     prompt: list[dict]
     moment_task: asyncio.Task
     on_step: StepCallback | None
+    max_tokens: int = 800
     spans: dict[str, int] = field(default_factory=dict)
 
 
@@ -145,7 +147,9 @@ class Orchestrator:
 
         await _emit(on_step, "llm", "🤖 Calling LLM (main tier)", {"messages": len(ctx.prompt)})
         t_llm = time.perf_counter()
-        response = await self.llm.chat(ctx.prompt, model_tier=self._default_tier)
+        response = await self.llm.chat(
+            ctx.prompt, model_tier=self._default_tier, max_tokens=ctx.max_tokens
+        )
         spans["llm_ms"] = int((time.perf_counter() - t_llm) * 1000)
         await _emit(on_step, "llm", "✅ LLM response received", {"preview": response[:120]})
 
@@ -188,7 +192,9 @@ class Orchestrator:
         chunks: list[str] = []
         t_llm = time.perf_counter()
         first = True
-        async for piece in self.llm.chat_stream(ctx.prompt, model_tier=self._default_tier):
+        async for piece in self.llm.chat_stream(
+            ctx.prompt, model_tier=self._default_tier, max_tokens=ctx.max_tokens
+        ):
             if first:
                 spans["ttft_ms"] = int((time.perf_counter() - t_llm) * 1000)
                 first = False
@@ -270,6 +276,9 @@ class Orchestrator:
 
         # 4. Build the rich prompt with neutral moment guidance so the main call
         # can start immediately. The real moment refines emotional state later.
+        length_level = response_length.normalize(
+            getattr(companion, "response_length", response_length.DEFAULT)
+        )
         prompt = build_phase3(
             companion=companion,
             memories=memories,
@@ -280,6 +289,7 @@ class Orchestrator:
             recent_msgs=recent,
             user_name=user_name,
             hours_since_last=hours_since,
+            response_length=length_level,
         )
         # The save runs concurrently with the recent-messages query, so the new
         # user turn may or may not be in `recent`. Guarantee it is the final
@@ -295,6 +305,7 @@ class Orchestrator:
             prompt=prompt,
             moment_task=moment_task,
             on_step=on_step,
+            max_tokens=response_length.max_tokens_for(length_level),
             spans=spans,
         )
 

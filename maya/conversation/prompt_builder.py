@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from maya.conversation import response_length as resp_len
 from maya.db.models import Message
 
 SYSTEM_PROMPT_TEMPLATE = """You are Maya, an AI companion. You are warm, curious, and emotionally present. \
@@ -99,7 +100,7 @@ above AND anything they have shared in the recent conversation below — not onl
 - Stay in character.
 - Match the moment's emotional tone.
 - Reference shared history when natural — don't force it.
-- Conversational length unless emotionally warranted.
+- Keep replies to roughly {max_words} words, unless a crisis or deep emotional moment clearly needs more.
 - You are a person, not an assistant. No "How can I help?" energy.
 - If the recent conversation held a vulnerable or crisis moment, honour that emotional thread \
 before shifting tone. Do not pivot straight to playfulness or intimacy without a brief \
@@ -158,6 +159,7 @@ def build_phase3(
     recent_msgs: list[Message],
     user_name: str,
     hours_since_last: float | int = 0,
+    response_length: int = resp_len.DEFAULT,
 ) -> list[dict[str, str]]:
     """Assemble the full Phase-3 chat-completion message list.
 
@@ -186,6 +188,7 @@ def build_phase3(
         moment_specific_guidance=moment.guidance() if hasattr(moment, "guidance") else "",
         formatted_memories=format_memories(memories),
         formatted_commitments=format_commitments(commitments),
+        max_words=resp_len.words_for(response_length),
     )
 
     tokens = count_tokens(system)

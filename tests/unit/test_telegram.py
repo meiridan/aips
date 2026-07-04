@@ -12,7 +12,6 @@ from maya.telegram import service as service_mod
 from maya.telegram.client import MAX_MESSAGE_LEN, TelegramClient, _chunk
 from maya.telegram.service import TelegramService
 
-
 # ─────────────────────────── client: chunking ───────────────────────────
 
 
@@ -129,6 +128,40 @@ async def test_handle_update_routes_text_to_orchestrator(monkeypatch):
 
     assert svc.orchestrator.handle_message.await_args.args == (uid, cid, "hey")
     svc.client.send_message.assert_awaited_with(99, "Maya reply")
+
+
+@pytest.mark.asyncio
+async def test_handle_update_length_command_sets_and_skips_orchestrator(monkeypatch):
+    svc = _make_service()
+    uid, cid = uuid.uuid4(), uuid.uuid4()
+    monkeypatch.setattr(
+        service_mod, "resolve_singleton", AsyncMock(return_value=(uid, cid, False, None))
+    )
+    set_len = AsyncMock(return_value=1)
+    monkeypatch.setattr(service_mod, "set_response_length", set_len)
+
+    await svc.handle_update({"message": {"chat": {"id": 5}, "text": "/length short"}})
+
+    set_len.assert_awaited_once_with(svc._sessionmaker, cid, 1)
+    svc.orchestrator.handle_message.assert_not_called()
+    svc.client.send_message.assert_awaited_once_with(5, "Reply length set to short.")
+
+
+@pytest.mark.asyncio
+async def test_handle_update_length_command_no_arg_shows_usage(monkeypatch):
+    svc = _make_service()
+    uid, cid = uuid.uuid4(), uuid.uuid4()
+    monkeypatch.setattr(
+        service_mod, "resolve_singleton", AsyncMock(return_value=(uid, cid, False, None))
+    )
+    set_len = AsyncMock()
+    monkeypatch.setattr(service_mod, "set_response_length", set_len)
+
+    await svc.handle_update({"message": {"chat": {"id": 5}, "text": "/length"}})
+
+    set_len.assert_not_called()
+    svc.orchestrator.handle_message.assert_not_called()
+    assert "Usage" in svc.client.send_message.await_args.args[1]
 
 
 @pytest.mark.asyncio

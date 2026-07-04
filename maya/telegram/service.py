@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from maya.companions.settings import set_response_length
 from maya.companions.singleton import resolve_singleton
 from maya.config import get_settings
+from maya.conversation import response_length
 from maya.conversation.orchestrator import Orchestrator
 from maya.db.session import get_sessionmaker
 from maya.logging import get_logger
@@ -53,6 +55,20 @@ class TelegramService:
             if not created:
                 await self.client.send_message(int(chat_id), "Hey — I'm here. What's on your mind?")
             return  # greeting already covers a brand-new companion
+
+        if text.strip().lower().startswith("/length"):
+            parts = text.split(maxsplit=1)
+            level = response_length.parse(parts[1]) if len(parts) > 1 else None
+            if level is None:
+                await self.client.send_message(
+                    int(chat_id), "Usage: /length short|medium|long (or 1|2|3)"
+                )
+            else:
+                await set_response_length(self._sessionmaker, cid, level)
+                await self.client.send_message(
+                    int(chat_id), f"Reply length set to {response_length.label(level)}."
+                )
+            return
 
         await self.client.send_chat_action(int(chat_id), "typing")
         sent = {"reply": False}

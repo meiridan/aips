@@ -219,6 +219,41 @@ async def test_stream_and_nonstream_save_same_way(db_sessionmaker, seeded_ids):
     assert "user" in roles and "assistant" in roles
 
 
+class _KwargCapturingLLM(_FakeLLM):
+    """Records the max_tokens each reply call receives."""
+
+    def __init__(self):
+        super().__init__()
+        self.max_tokens_seen = []
+
+    async def chat(self, messages, **kwargs):
+        self.max_tokens_seen.append(kwargs.get("max_tokens"))
+        return await super().chat(messages, **kwargs)
+
+    async def chat_stream(self, messages, **kwargs):
+        self.max_tokens_seen.append(kwargs.get("max_tokens"))
+        async for piece in super().chat_stream(messages, **kwargs):
+            yield piece
+
+
+@pytest.mark.parametrize("level,expected_tokens", [(1, 250), (2, 700), (3, 1600)])
+@pytest.mark.asyncio
+async def test_reply_length_sets_max_tokens(db_sessionmaker, seeded_ids, level, expected_tokens):
+    from maya.db.models import Companion
+
+    uid, cid = seeded_ids
+    async with db_sessionmaker() as s:
+        (await s.get(Companion, cid)).response_length = level
+        await s.commit()
+
+    llm = _KwargCapturingLLM()
+    orch = _make_orch(db_sessionmaker, llm, _FakeMemory())
+    await orch.handle_message(uid, cid, "hi")
+    async for _ in orch.stream_message(uid, cid, "again"):
+        pass
+    assert llm.max_tokens_seen == [expected_tokens, expected_tokens]
+
+
 @pytest.mark.asyncio
 async def test_stage_transition_after_five_turns(db_sessionmaker, seeded_ids):
     from maya.relationship.service import RelationshipService

@@ -171,7 +171,10 @@ if [[ $CHECK -eq 0 ]]; then
   echo "  Ctrl-C to stop."
   RELOAD_ARGS=(--reload --reload-dir maya)
   [[ $NO_RELOAD -eq 1 ]] && RELOAD_ARGS=()
-  exec uv run uvicorn maya.web:app --host "$HOST" --port "$PORT" "${RELOAD_ARGS[@]}"
+  # macOS ships bash 3.2, where an empty array counts as unset under `set -u`,
+  # so --no-reload would abort here. The `[@]+` guard expands to nothing instead.
+  exec uv run uvicorn maya.web:app --host "$HOST" --port "$PORT" \
+    ${RELOAD_ARGS[@]+"${RELOAD_ARGS[@]}"}
 fi
 
 # ── --check: boot, probe, tear down ──────────────────────────────────────────

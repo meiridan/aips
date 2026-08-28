@@ -21,3 +21,10 @@ sims/
 
 # product test run logs
 tests/product_phase3/run.log
+
+# Frontend deps (the built bundle in maya/static/ IS committed — see `make ui`)
+frontend/node_modules/
+
+# Local agent/tool state
+.claude/settings.local.json
+.serena/

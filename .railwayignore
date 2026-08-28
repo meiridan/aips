@@ -16,3 +16,6 @@ sims/
 *.rtf
 .DS_Store
 .vscode/
+# SPA sources — the built bundle already ships in maya/static/
+frontend/
+uiflow/

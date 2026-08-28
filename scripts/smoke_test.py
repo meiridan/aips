@@ -42,7 +42,7 @@ async def check_redis():
 def check_llm():
     import litellm
     resp = litellm.completion(
-        model="xai/grok-4.6",
+        model="xai/grok-4.5",
         messages=[{"role": "user", "content": "Say ok"}],
         max_tokens=5,
     )

@@ -22,11 +22,11 @@ DEFAULT_REASONING_EFFORT = "low"
 
 # Models that accept a `reasoning_effort` param. Sending it to a non-reasoning
 # model (gpt-4o etc.) is a 400, which would burn a fallback slot for no reason.
-REASONING_MODELS: frozenset[str] = frozenset({"xai/grok-4.6"})
+REASONING_MODELS: frozenset[str] = frozenset({"xai/grok-4.5", "xai/grok-4.6"})
 
 TIER_MODELS: dict[str, list[str]] = {
     "main": [
-        "xai/grok-4.6",  # primary
+        "xai/grok-4.5",  # primary
         "openai/gpt-4o",  # fallback 1
         "anthropic/claude-sonnet-4-6",  # fallback 2 (refuses NSFW)
     ],

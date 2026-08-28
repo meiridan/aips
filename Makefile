@@ -1,4 +1,4 @@
-.PHONY: dev test db.migrate db.reset chat install web phase2-runner phase2-restart deploy.provision deploy.smoke deploy.redeploy deploy.logs deploy.teardown eval eval.behaviors
+.PHONY: dev local local.check test db.migrate db.reset chat install web ui ui.test phase2-runner phase2-restart deploy.provision deploy.ui deploy.smoke deploy.redeploy deploy.logs deploy.teardown eval eval.behaviors
 
 install:
 	uv sync
@@ -8,6 +8,14 @@ dev:
 	docker compose up -d
 	docker compose exec -T db sh -c 'until pg_isready -U postgres -d maya; do sleep 1; done'
 	uv run alembic upgrade head
+
+# Full local stack in one command: Postgres + migrations + SPA build + server.
+local:
+	bash scripts/dev/run_local.sh
+
+# Same, but boot → probe every endpoint → shut down. Leaves no server running.
+local.check:
+	bash scripts/dev/run_local.sh --check
 
 db.migrate:
 	uv run alembic upgrade head
@@ -30,6 +38,15 @@ eval:
 eval.behaviors:
 	uv run pytest -m eval tests/simulator/test_behaviors.py
 
+# Build the SPA into maya/static/. Railway builds via railpack (uv + Procfile)
+# with no build-time hook, so Node never runs on the server — the bundle is built
+# here and committed.
+ui:
+	cd frontend && npm ci && npm run build
+
+ui.test:
+	cd frontend && npm run test
+
 chat:
 	uv run maya chat
 
@@ -44,6 +61,10 @@ phase2-restart:
 
 deploy.provision:
 	bash scripts/deploy/provision.sh
+
+# Frontend-only deploy: build the SPA and ship it. No migrations, no env writes.
+deploy.ui:
+	bash scripts/deploy/deploy_frontend.sh
 
 deploy.smoke:
 	bash scripts/deploy/with-railway-env.sh sh -c 'DATABASE_URL="$$(uv run python scripts/deploy/asyncpg_url.py)" uv run python scripts/smoke_test.py'

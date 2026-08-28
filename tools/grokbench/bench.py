@@ -91,13 +91,21 @@ def _summarize_usage(usage: dict[str, Any] | None) -> dict[str, int]:
 # ── the call, three ways ─────────────────────────────────────────────────────
 
 
+def _raise_with_body(resp: httpx.Response) -> None:
+    """raise_for_status() hides xAI's error message, which is the useful half."""
+    if resp.is_success:
+        return
+    body = resp.read().decode(errors="replace")[:500]
+    raise typer.BadParameter(f"HTTP {resp.status_code} from xAI: {body}")
+
+
 def call_raw_stream(client: httpx.Client, body: dict[str, Any]) -> Result:
     t0 = time.perf_counter()
     ttft = None
     text = ""
     usage = None
     with client.stream("POST", f"{API_BASE}/chat/completions", json=body) as resp:
-        resp.raise_for_status()
+        _raise_with_body(resp)
         for line in resp.iter_lines():
             if not line.startswith("data: "):
                 continue
@@ -120,7 +128,7 @@ def call_raw_stream(client: httpx.Client, body: dict[str, Any]) -> Result:
 def call_raw_blocking(client: httpx.Client, body: dict[str, Any]) -> Result:
     t0 = time.perf_counter()
     resp = client.post(f"{API_BASE}/chat/completions", json=body)
-    resp.raise_for_status()
+    _raise_with_body(resp)
     total = (time.perf_counter() - t0) * 1000
     data = resp.json()
     text = ((data.get("choices") or [{}])[0].get("message") or {}).get("content") or ""
@@ -295,7 +303,7 @@ def models() -> None:
     """List the models this key can reach. Free."""
     with httpx.Client(headers=_headers(), timeout=30.0) as client:
         resp = client.get(f"{API_BASE}/models")
-        resp.raise_for_status()
+        _raise_with_body(resp)
         for item in resp.json().get("data", []):
             print(item.get("id"))
 
@@ -315,7 +323,7 @@ def tokenize(
         text = "\n".join(m["content"] for m in messages)
     with httpx.Client(headers=_headers(), timeout=30.0) as client:
         resp = client.post(f"{API_BASE}/tokenize-text", json={"text": text, "model": _bare(model)})
-        resp.raise_for_status()
+        _raise_with_body(resp)
         tokens = resp.json().get("token_ids") or []
 
     from maya.conversation.prompt_builder import count_tokens

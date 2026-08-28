@@ -5,11 +5,16 @@ from __future__ import annotations
 import asyncio
 import json
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 
+from maya.companions import catalog
+from maya.companions.onboarding import AlreadyOnboarded, create_companion, get_state
+from maya.companions.persona_spec import PersonaSpec
 from maya.companions.settings import set_response_length
 from maya.companions.singleton import resolve_singleton
 from maya.config import get_settings
@@ -42,11 +47,13 @@ def get_orchestrator() -> Orchestrator:
         _orchestrator = Orchestrator()
     return _orchestrator
 
+
 # Re-exported so callers/tests can confirm the web path uses the shared
 # orchestrator constants instead of hardcoded context limits (regression guard
 # for the old 3/10 duplication bug — now structurally impossible after the
 # single-orchestrator refactor).
 __all__ = ["app", "MEMORY_LIMIT", "RECENT_LIMIT"]
+
 
 async def _warmup() -> None:
     """Pre-pay first-request costs so the first turn after boot/idle is fast.
@@ -67,7 +74,7 @@ async def _warmup() -> None:
 
         # Warm identity + companion + user_name caches via one real turn's reads.
         sm = get_sessionmaker()
-        user_id, companion_id, _created, _first = await resolve_singleton(sm)
+        user_id, companion_id, _created, _first = await resolve_singleton(sm, genesis=False)
         orch = get_orchestrator()
         await asyncio.gather(
             orch._load_companion(companion_id),
@@ -97,560 +104,71 @@ app = FastAPI(title="Maya Web UI", lifespan=lifespan)
 configure_logging(get_settings().litellm_log)
 
 
+# The SPA (Vite build output) and the curated wizard imagery. Both are committed
+# to the repo: Railway builds via railpack (uv + Procfile) with no build-time
+# hook, so Node never runs on the server — see CLAUDE.md and `make ui`.
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+MEDIA_DIR = Path(__file__).resolve().parent / "media"
+
+if (STATIC_DIR / "assets").is_dir():
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+if MEDIA_DIR.is_dir():
+    app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
+
+
+UNBUILT_HTML = """<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8"><title>Maya</title></head>
+<body style="font-family:sans-serif;background:#0a0a0f;color:#eee;padding:40px">
+<h1>הממשק לא נבנה</h1>
+<p>הריצו <code dir="ltr">make ui</code> כדי לבנות את ה-SPA אל <code dir="ltr">maya/static/</code>.</p>
+</body></html>"""
+
+
 @app.get("/")
 async def get_index():
-    """Serve the main HTML page."""
-    html_content = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Maya - Chat & Debug</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            height: 100vh;
-            display: flex;
-            background: #f5f5f5;
-        }
-        
-        /* Left Panel - Chat */
-        .chat-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: white;
-            border-right: 2px solid #e0e0e0;
-        }
-        
-        .chat-header {
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .chat-header h1 {
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-        
-        .chat-header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
-        
-        .messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .message {
-            padding: 12px 16px;
-            border-radius: 12px;
-            max-width: 80%;
-            word-wrap: break-word;
-        }
-        
-        .message.user {
-            background: #667eea;
-            color: white;
-            align-self: flex-end;
-            margin-left: auto;
-        }
-        
-        .message.assistant {
-            background: #f0f0f0;
-            color: #333;
-            align-self: flex-start;
-        }
-        
-        .message .role {
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-            opacity: 0.8;
-        }
-        
-        .input-area {
-            padding: 20px;
-            border-top: 1px solid #e0e0e0;
-            background: white;
-        }
-        
-        .input-container {
-            display: flex;
-            gap: 10px;
-        }
-        
-        input {
-            flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 14px;
-            outline: none;
-        }
-        
-        input:focus {
-            border-color: #667eea;
-        }
-        
-        button {
-            padding: 12px 24px;
-            background: #667eea;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
-        button:hover {
-            background: #5568d3;
-        }
-        
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        /* Right Panel - Debug */
-        .debug-panel {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: #1e1e1e;
-        }
-        
-        .debug-header {
-            padding: 20px;
-            background: #2d2d2d;
-            color: #fff;
-            border-bottom: 1px solid #3d3d3d;
-        }
-        
-        .debug-header h2 {
-            font-size: 18px;
-            margin-bottom: 5px;
-        }
-        
-        .debug-header p {
-            opacity: 0.7;
-            font-size: 12px;
-        }
-        
-        .debug-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-            font-family: 'Monaco', 'Courier New', monospace;
-            font-size: 12px;
-            color: #d4d4d4;
-        }
-        
-        .debug-entry {
-            margin-bottom: 16px;
-            padding: 12px;
-            background: #2d2d2d;
-            border-radius: 6px;
-            border-left: 3px solid #667eea;
-        }
-        
-        .debug-entry.step {
-            border-left-color: #4ade80;
-        }
-        
-        .debug-entry.llm {
-            border-left-color: #fbbf24;
-        }
-        
-        .debug-entry.memory {
-            border-left-color: #ec4899;
-        }
-        
-        .debug-entry.error {
-            border-left-color: #ef4444;
-        }
-        
-        .debug-entry .timestamp {
-            color: #888;
-            font-size: 10px;
-            margin-bottom: 4px;
-        }
-        
-        .debug-entry .label {
-            color: #667eea;
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-        
-        .debug-entry.step .label { color: #4ade80; }
-        .debug-entry.llm .label { color: #fbbf24; }
-        .debug-entry.memory .label { color: #ec4899; }
-        .debug-entry.error .label { color: #ef4444; }
-        
-        .debug-entry pre {
-            color: #d4d4d4;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-        
-        .connection-status {
-            padding: 8px 12px;
-            background: #2d2d2d;
-            border-top: 1px solid #3d3d3d;
-            color: #888;
-            font-size: 11px;
-            text-align: center;
-        }
-        
-        .connection-status.connected {
-            color: #4ade80;
-        }
-        
-        .connection-status.disconnected {
-            color: #ef4444;
-        }
+    """Serve the SPA shell; it decides wizard-vs-chat from /api/companion."""
+    index = STATIC_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index, media_type="text/html")
+    return HTMLResponse(UNBUILT_HTML, status_code=503)
 
-        /* Mobile tab bar — hidden on desktop */
-        .tab-bar {
-            display: none;
-        }
 
-        @media (max-width: 768px) {
-            body {
-                flex-direction: column;
-                height: 100dvh;
-            }
+# ───────────────────────────── creation wizard API ────────────────────────
 
-            .tab-bar {
-                display: flex;
-                background: #2d2d2d;
-                flex-shrink: 0;
-            }
 
-            .tab-bar .tab {
-                flex: 1;
-                border-radius: 0;
-                background: #2d2d2d;
-                color: #aaa;
-                padding: 14px;
-                font-size: 15px;
-                font-weight: 600;
-                position: relative;
-            }
+@app.get("/api/catalog")
+async def get_catalog() -> dict:
+    """Every wizard option with its Hebrew label and tile — the SPA hardcodes none."""
+    return catalog.as_dict()
 
-            .tab-bar .tab.active {
-                background: #667eea;
-                color: #fff;
-            }
 
-            .tab-bar .tab.has-new::after {
-                content: '';
-                position: absolute;
-                top: 10px;
-                right: 20px;
-                width: 8px;
-                height: 8px;
-                background: #4ade80;
-                border-radius: 50%;
-            }
+@app.get("/api/companion")
+async def get_companion() -> dict:
+    """Onboarding state + saved spec. `onboarded` gates wizard vs chat."""
+    sm = get_sessionmaker()
+    _uid, cid, _created, _first = await resolve_singleton(sm, genesis=False)
+    return await get_state(sm, cid)
 
-            /* Only the active panel is shown on mobile */
-            .chat-panel,
-            .debug-panel {
-                display: none;
-                width: 100%;
-                flex: 1;
-                min-height: 0;
-                border-right: none;
-            }
 
-            body.show-chat .chat-panel { display: flex; }
-            body.show-debug .debug-panel { display: flex; }
+class CreateCompanionRequest(PersonaSpec):
+    """A wizard submission: the spec plus an explicit re-creation flag."""
 
-            .chat-header h1 { font-size: 20px; }
-            .chat-header,
-            .debug-header { padding: 14px 16px; }
-            .messages,
-            .debug-content { padding: 14px; }
-            .input-area { padding: 14px; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+    reset: bool = False
 
-            .message { max-width: 88%; }
 
-            /* 16px input prevents iOS auto-zoom on focus */
-            input { font-size: 16px; }
-        }
-    </style>
-</head>
-<body class="show-chat">
-    <div class="tab-bar">
-        <button id="tab-chat" class="tab active" onclick="switchTab('chat')">💬 Chat</button>
-        <button id="tab-debug" class="tab" onclick="switchTab('debug')">🔍 Debug</button>
-    </div>
-    <div class="chat-panel">
-        <div class="chat-header">
-            <h1>💬 Maya Chat</h1>
-            <p>Your AI Companion</p>
-        </div>
-        <div class="messages" id="messages">
-        </div>
-        <div class="input-area">
-            <div class="length-control" style="display:flex;gap:6px;margin-bottom:10px;align-items:center;">
-                <span style="font-size:12px;color:#888;">Reply length:</span>
-                <button type="button" class="len-btn" data-level="1" onclick="setLength(1)"
-                        style="padding:4px 10px;font-size:12px;background:#eee;color:#333;">Short</button>
-                <button type="button" class="len-btn" data-level="2" onclick="setLength(2)"
-                        style="padding:4px 10px;font-size:12px;background:#eee;color:#333;">Medium</button>
-                <button type="button" class="len-btn" data-level="3" onclick="setLength(3)"
-                        style="padding:4px 10px;font-size:12px;background:#eee;color:#333;">Long</button>
-            </div>
-            <div class="input-container">
-                <input type="text" id="messageInput" placeholder="Type your message..." dir="auto" />
-                <button id="sendButton" onclick="sendMessage()">Send</button>
-            </div>
-        </div>
-    </div>
-    
-    <div class="debug-panel">
-        <div class="debug-header">
-            <h2>🔍 Debug Flow</h2>
-            <p>Watch what happens behind the scenes</p>
-        </div>
-        <div class="debug-content" id="debugContent"></div>
-        <div class="connection-status" id="connectionStatus">Connecting...</div>
-    </div>
-
-    <script>
-        let ws = null;
-        let isConnected = false;
-        let historyLoading = true;
-        let streamEl = null;  // content div of the in-flight assistant bubble
-
-        function connect() {
-            const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${wsProto}//${window.location.host}/ws`);
-            historyLoading = true;
-            document.getElementById('messages').innerHTML = '';
-
-            ws.onopen = () => {
-                isConnected = true;
-                updateConnectionStatus();
-                addDebugEntry('system', 'Connected to Maya server', {});
-            };
-
-            ws.onclose = () => {
-                isConnected = false;
-                updateConnectionStatus();
-                addDebugEntry('error', 'Disconnected from server', {});
-                setTimeout(connect, 2000);
-            };
-
-            ws.onerror = (error) => {
-                addDebugEntry('error', 'WebSocket error', { error: error.toString() });
-            };
-
-            ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-
-                if (data.type === 'history_end') {
-                    historyLoading = false;
-                    const messagesDiv = document.getElementById('messages');
-                    if (messagesDiv.children.length === 0) {
-                        addMessage('assistant', "Hi! I'm Maya. What's on your mind?");
-                    } else {
-                        // If last message is from user (no assistant response yet),
-                        // the response is still being generated — reload in 3s to pick it up.
-                        const msgs = messagesDiv.querySelectorAll('.message');
-                        const last = msgs[msgs.length - 1];
-                        if (last && last.classList.contains('user')) {
-                            addMessage('assistant', '…');
-                            setTimeout(() => location.reload(), 3000);
-                        }
-                    }
-                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-                } else if (data.type === 'message') {
-                    addMessage(data.role, data.content);
-                } else if (data.type === 'message_start') {
-                    streamEl = beginAssistantMessage();
-                } else if (data.type === 'message_chunk') {
-                    if (!streamEl) streamEl = beginAssistantMessage();
-                    streamEl.textContent += data.content;
-                    const m = document.getElementById('messages');
-                    m.scrollTop = m.scrollHeight;
-                } else if (data.type === 'message_end') {
-                    streamEl = null;
-                    const input = document.getElementById('messageInput');
-                    const sendButton = document.getElementById('sendButton');
-                    input.disabled = false; sendButton.disabled = false; input.focus();
-                } else if (data.type === 'debug') {
-                    addDebugEntry(data.category, data.label, data.data);
-                }
-            };
-        }
-
-        function updateConnectionStatus() {
-            const status = document.getElementById('connectionStatus');
-            if (isConnected) {
-                status.textContent = '● Connected';
-                status.className = 'connection-status connected';
-            } else {
-                status.textContent = '● Disconnected';
-                status.className = 'connection-status disconnected';
-            }
-        }
-
-        function addMessage(role, content) {
-            const messagesDiv = document.getElementById('messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${role}`;
-
-            const roleDiv = document.createElement('div');
-            roleDiv.className = 'role';
-            roleDiv.textContent = role === 'user' ? 'You' : 'Maya';
-
-            const contentDiv = document.createElement('div');
-            contentDiv.dir = 'auto';
-            contentDiv.textContent = content;
-
-            messageDiv.appendChild(roleDiv);
-            messageDiv.appendChild(contentDiv);
-            messagesDiv.appendChild(messageDiv);
-            if (!historyLoading) {
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            }
-        }
-
-        // Create an empty assistant bubble and return its content div so stream
-        // chunks can be appended into it as they arrive.
-        function beginAssistantMessage() {
-            const messagesDiv = document.getElementById('messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message assistant';
-            const roleDiv = document.createElement('div');
-            roleDiv.className = 'role';
-            roleDiv.textContent = 'Maya';
-            const contentDiv = document.createElement('div');
-            contentDiv.dir = 'auto';
-            contentDiv.textContent = '';
-            messageDiv.appendChild(roleDiv);
-            messageDiv.appendChild(contentDiv);
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-            return contentDiv;
-        }
-
-        function addDebugEntry(category, label, data) {
-            const debugDiv = document.getElementById('debugContent');
-            const entryDiv = document.createElement('div');
-            entryDiv.className = `debug-entry ${category}`;
-            
-            const timestamp = new Date().toLocaleTimeString();
-            const timestampDiv = document.createElement('div');
-            timestampDiv.className = 'timestamp';
-            timestampDiv.textContent = timestamp;
-            
-            const labelDiv = document.createElement('div');
-            labelDiv.className = 'label';
-            labelDiv.textContent = label;
-            
-            const dataDiv = document.createElement('pre');
-            dataDiv.textContent = JSON.stringify(data, null, 2);
-            
-            entryDiv.appendChild(timestampDiv);
-            entryDiv.appendChild(labelDiv);
-            if (Object.keys(data).length > 0) {
-                entryDiv.appendChild(dataDiv);
-            }
-            
-            debugDiv.appendChild(entryDiv);
-            debugDiv.scrollTop = debugDiv.scrollHeight;
-
-            // On mobile, badge the Debug tab when it's not the active view
-            if (window.matchMedia('(max-width: 768px)').matches &&
-                !document.body.classList.contains('show-debug')) {
-                document.getElementById('tab-debug').classList.add('has-new');
-            }
-        }
-        
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const sendButton = document.getElementById('sendButton');
-            const message = input.value.trim();
-            
-            if (!message || !isConnected) return;
-            
-            // Disable input while processing
-            input.disabled = true;
-            sendButton.disabled = true;
-            
-            // Send message
-            ws.send(JSON.stringify({ content: message }));
-            
-            // Clear input
-            input.value = '';
-
-            // Input is re-enabled on 'message_end' (after the reply streams in).
-            // Safety fallback in case the end frame is lost.
-            setTimeout(() => {
-                input.disabled = false;
-                sendButton.disabled = false;
-            }, 60000);
-        }
-        
-        // Reply-length control.
-        function highlightLength(level) {
-            document.querySelectorAll('.len-btn').forEach(b => {
-                const active = Number(b.dataset.level) === Number(level);
-                b.style.background = active ? '#667eea' : '#eee';
-                b.style.color = active ? 'white' : '#333';
-            });
-        }
-        function setLength(level) {
-            fetch('/companion/response_length', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ level }),
-            }).then(r => r.json()).then(d => highlightLength(d.level)).catch(() => {});
-        }
-        // Reflect the current stored level on load.
-        fetch('/companion/response_length').then(r => r.json())
-            .then(d => highlightLength(d.level)).catch(() => highlightLength(2));
-
-        // Enter key to send
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        });
-        
-        // Mobile tab switching
-        function switchTab(tab) {
-            document.body.classList.remove('show-chat', 'show-debug');
-            document.body.classList.add('show-' + tab);
-            const other = tab === 'chat' ? 'debug' : 'chat';
-            document.getElementById('tab-' + tab).classList.add('active');
-            document.getElementById('tab-' + other).classList.remove('active');
-            if (tab === 'debug') {
-                document.getElementById('tab-debug').classList.remove('has-new');
-            }
-        }
-
-        // Connect on load
-        connect();
-    </script>
-</body>
-</html>
-    """
-    return HTMLResponse(content=html_content)
+@app.post("/api/companion")
+async def post_companion(payload: CreateCompanionRequest) -> dict:
+    """Apply the wizard spec and run genesis. Slow by design (one LLM call)."""
+    spec = PersonaSpec.model_validate(payload.model_dump(exclude={"reset"}))
+    sm = get_sessionmaker()
+    _uid, cid, _created, _first = await resolve_singleton(sm, genesis=False)
+    try:
+        first_message = await create_companion(sm, cid, spec, reset=payload.reset)
+    except AlreadyOnboarded:
+        raise HTTPException(
+            status_code=409, detail="companion already created; pass reset=true"
+        ) from None
+    return {"ok": True, "first_message": first_message}
 
 
 @app.post("/telegram/webhook")
@@ -681,9 +199,7 @@ async def get_response_length() -> dict:
     _uid, cid, _created, _first = await resolve_singleton(sm)
     async with sm() as session:
         comp = await session.get(Companion, cid)
-        level = response_length.normalize(
-            getattr(comp, "response_length", response_length.DEFAULT)
-        )
+        level = response_length.normalize(getattr(comp, "response_length", response_length.DEFAULT))
     return {"level": level}
 
 
@@ -704,21 +220,28 @@ async def post_response_length(request: Request) -> dict:
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time chat and debug info."""
     await websocket.accept()
-    
+
     # Single shared Maya — same companion Telegram talks to (no multi-user).
     sm = get_sessionmaker()
     user_id, companion_id, created, _first = await resolve_singleton(sm)
     if created:
-        await send_debug(websocket, "system", "Created new user and companion", {
-            "user_id": str(user_id),
-            "companion_id": str(companion_id),
-        })
+        await send_debug(
+            websocket,
+            "system",
+            "Created new user and companion",
+            {
+                "user_id": str(user_id),
+                "companion_id": str(companion_id),
+            },
+        )
 
-    await send_debug(websocket, "system", "Session initialized", {
-        "user_id": str(user_id),
-        "companion_id": str(companion_id)
-    })
-    
+    await send_debug(
+        websocket,
+        "system",
+        "Session initialized",
+        {"user_id": str(user_id), "companion_id": str(companion_id)},
+    )
+
     # Replay recent message history in chronological order (capped — see
     # HISTORY_REPLAY_LIMIT). Fetch newest-first with a LIMIT, then reverse.
     async with sm() as session:
@@ -732,11 +255,13 @@ async def websocket_endpoint(websocket: WebSocket):
         history.reverse()
 
     for msg in history:
-        await websocket.send_json({
-            "type": "message",
-            "role": msg.role,
-            "content": msg.content,
-        })
+        await websocket.send_json(
+            {
+                "type": "message",
+                "role": msg.role,
+                "content": msg.content,
+            }
+        )
 
     await websocket.send_json({"type": "history_end"})
 
@@ -757,11 +282,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 continue
 
             # Echo user message
-            await websocket.send_json({
-                "type": "message",
-                "role": "user",
-                "content": content
-            })
+            await websocket.send_json({"type": "message", "role": "user", "content": content})
 
             # Stream the assistant reply token-by-token (perceived latency win).
             # message_end is sent the moment the reply finishes streaming —
@@ -777,8 +298,11 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 await websocket.send_json({"type": "message_start", "role": "assistant"})
                 async for piece in orch.stream_message(
-                    user_id, companion_id, content,
-                    on_step=on_step, on_reply_done=lambda _r: send_end(),
+                    user_id,
+                    companion_id,
+                    content,
+                    on_step=on_step,
+                    on_reply_done=lambda _r: send_end(),
                 ):
                     await websocket.send_json({"type": "message_chunk", "content": piece})
                 await send_end()
@@ -794,16 +318,14 @@ async def websocket_endpoint(websocket: WebSocket):
 async def send_debug(websocket: WebSocket, category: str, label: str, data: dict):
     """Send debug info to client."""
     try:
-        await websocket.send_json({
-            "type": "debug",
-            "category": category,
-            "label": label,
-            "data": data
-        })
+        await websocket.send_json(
+            {"type": "debug", "category": category, "label": label, "data": data}
+        )
     except Exception:
         pass  # Client might have disconnected
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

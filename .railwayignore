@@ -19,3 +19,6 @@ sims/
 # SPA sources — the built bundle already ships in maya/static/
 frontend/
 uiflow/
+
+# tools/ is a local diagnostic (grokbench) — never needed on the server
+tools/

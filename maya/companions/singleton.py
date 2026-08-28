@@ -21,6 +21,8 @@ from maya.db.session import get_sessionmaker
 
 async def resolve_singleton(
     sessionmaker: Any = None,
+    *,
+    genesis: bool = True,
 ) -> tuple[uuid.UUID, uuid.UUID, bool, str | None]:
     """Return (user_id, companion_id, created, first_message).
 
@@ -28,6 +30,11 @@ async def resolve_singleton(
     and runs genesis; `created` is True and `first_message` is Maya's opener.
     The resolved (user_id, companion_id) is immutable per process, so it is
     cached after the first lookup (single-user app).
+
+    Pass `genesis=False` when the caller only needs the identity and a birth
+    would be wrong — the creation wizard and the boot warmup both resolve the
+    companion *before* the user has said who she is, and paying for a default
+    genesis there would spend an LLM call and seed an opener in the wrong voice.
     """
     cached = runtime_cache.get_singleton()
     if cached is not None:
@@ -36,9 +43,7 @@ async def resolve_singleton(
     sm = sessionmaker or get_sessionmaker()
     async with sm() as session:
         comp = (
-            await session.execute(
-                select(Companion).order_by(Companion.created_at.asc()).limit(1)
-            )
+            await session.execute(select(Companion).order_by(Companion.created_at.asc()).limit(1))
         ).scalar_one_or_none()
         if comp is not None:
             runtime_cache.set_singleton(comp.user_id, comp.id)
@@ -52,6 +57,9 @@ async def resolve_singleton(
         await session.commit()
         user_id, companion_id = user.id, comp.id
 
-    result = await run_genesis(companion_id, sessionmaker=sm)
     runtime_cache.set_singleton(user_id, companion_id)
+    if not genesis:
+        return user_id, companion_id, True, None
+
+    result = await run_genesis(companion_id, sessionmaker=sm)
     return user_id, companion_id, True, result.first_message

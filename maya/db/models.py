@@ -42,9 +42,7 @@ class User(Base):
         BigInteger, unique=True, index=True, nullable=True
     )
     timezone: Mapped[str] = mapped_column(Text, server_default="Asia/Jerusalem")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     companions: Mapped[list[Companion]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
@@ -66,12 +64,15 @@ class Companion(Base):
     personality: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
     backstory: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     # Reply-length preference: 1=short(~100w) 2=medium(~300w) 3=long(~1000w).
-    response_length: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="2"
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    response_length: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2")
+    # Creation-wizard output. `persona_spec` is the raw PersonaSpec dump (so the
+    # wizard can reopen prefilled); `onboarded_at` is the gate the SPA reads to
+    # decide wizard-vs-chat; `locale` drives the reply-language directive.
+    persona_spec: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    avatar_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    locale: Mapped[str] = mapped_column(Text, nullable=False, server_default="he")
+    onboarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped[User] = relationship(back_populates="companions")
     messages: Mapped[list[Message]] = relationship(
@@ -82,9 +83,7 @@ class Companion(Base):
 class Message(Base):
     __tablename__ = "messages"
     __table_args__ = (
-        CheckConstraint(
-            "role IN ('user', 'assistant', 'system')", name="messages_role_check"
-        ),
+        CheckConstraint("role IN ('user', 'assistant', 'system')", name="messages_role_check"),
         Index("idx_messages_companion_created", "companion_id", "created_at"),
     )
 
@@ -103,9 +102,7 @@ class Message(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     # NOTE: DB column is "metadata"; attribute renamed because Base.metadata is reserved.
     extra: Mapped[dict] = mapped_column("metadata", JSONB, server_default="{}")
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     companion: Mapped[Companion] = relationship(back_populates="messages")
 
@@ -128,9 +125,7 @@ class Memory(Base):
     source_message_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("messages.id", ondelete="SET NULL"), nullable=True
     )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class LLMCall(Base):
@@ -139,9 +134,7 @@ class LLMCall(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
     )
-    timestamp: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     model: Mapped[str] = mapped_column(Text, nullable=False)
     tier: Mapped[str] = mapped_column(Text, nullable=False)
     input_tokens: Mapped[int | None] = mapped_column(Integer)
@@ -181,9 +174,7 @@ class RelationshipState(Base):
     __tablename__ = "relationship_state"
     __table_args__ = (
         UniqueConstraint("companion_id", "user_id", name="relationship_companion_user_uq"),
-        CheckConstraint(
-            "intimacy_level BETWEEN 0 AND 10", name="relationship_intimacy_check"
-        ),
+        CheckConstraint("intimacy_level BETWEEN 0 AND 10", name="relationship_intimacy_check"),
         CheckConstraint("trust_level BETWEEN 0 AND 10", name="relationship_trust_check"),
     )
 
@@ -202,13 +193,9 @@ class RelationshipState(Base):
     intimacy_level: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     trust_level: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     days_known: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    total_interactions: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
+    total_interactions: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     last_interaction_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class RelationshipEvent(Base):

@@ -18,6 +18,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from maya.companions.commitments import CommitmentService
+from maya.companions.persona_spec import PersonaSpec, personality_blob
 from maya.companions.templates import get_template
 from maya.db.models import Companion, Message, User
 from maya.db.session import get_sessionmaker
@@ -33,7 +34,7 @@ GENESIS_PROMPT = """You are about to come to life as {companion_name}, an AI com
 YOUR TEMPLATE:
 - Archetype: {template_description}
 - Key traits: {template_traits}
-
+{persona_block}
 YOUR CREATOR:
 - His name: {user_name}
 - What he wrote about himself: {user_intent}
@@ -57,7 +58,19 @@ CONSTRAINTS:
 - Don't make her a fantasy. Make her a person.
 - The flaw matters. No flaw = no person.
 - The first message must NOT feel like a system greeting.
+{language_note}"""
+
+# Appended when the companion was built by the creation wizard.
+PERSONA_BLOCK = """
+WHO YOUR CREATOR MADE YOU TO BE (this is settled — build the backstory around it,
+never contradict it):
+{persona_description}
 """
+
+_LANGUAGE_NOTES = {
+    "he": "- Write `backstory` and `first_message` in Hebrew. Natural, spoken "
+    "Hebrew — not translated-sounding.\n",
+}
 
 _REQUIRED = {"backstory", "initial_feelings", "seed_commitments", "first_message"}
 
@@ -70,17 +83,34 @@ class GenesisResult(BaseModel):
 
 
 async def generate_genesis(
-    companion: Companion, user: User, llm: LLMService | None = None
+    companion: Companion,
+    user: User,
+    llm: LLMService | None = None,
+    *,
+    spec: PersonaSpec | None = None,
 ) -> GenesisResult:
-    """One-shot LLM call (main tier — personality matters) → GenesisResult."""
+    """One-shot LLM call (main tier — personality matters) → GenesisResult.
+
+    When `spec` is given (the creation wizard) her appearance and character are
+    already decided; the call only fills in backstory, feelings, commitments and
+    the opener, and must not contradict the spec.
+    """
     llm = llm or LLMService()
     template = get_template(companion.template_id)
+    persona_block = ""
+    if spec is not None:
+        from maya.companions.persona_spec import to_persona_description
+
+        persona_block = PERSONA_BLOCK.format(persona_description=to_persona_description(spec))
+    locale = getattr(companion, "locale", "en") or "en"
     prompt = GENESIS_PROMPT.format(
         companion_name=companion.name,
         template_description=template.description,
         template_traits=", ".join(template.traits),
+        persona_block=persona_block,
         user_name=user.name,
         user_intent=user.description or "open to whatever connection forms",
+        language_note=_LANGUAGE_NOTES.get(locale, ""),
     )
     result = await llm.chat_json(
         messages=[{"role": "user", "content": prompt}],
@@ -97,6 +127,7 @@ async def run_genesis(
     *,
     sessionmaker: Any = None,
     llm: LLMService | None = None,
+    spec: PersonaSpec | None = None,
 ) -> GenesisResult:
     """Apply genesis to a freshly-created companion. Idempotent-ish: overwrites
     backstory/feelings, appends seed commitments + first message."""
@@ -112,18 +143,22 @@ async def run_genesis(
             raise ValueError(f"User {companion.user_id} not found")
         # Detach plain copies for the LLM call (avoid holding the session open).
         comp_name, comp_template, user_obj = companion.name, companion.template_id, user
-        genesis = await generate_genesis(companion, user_obj, llm)
+        genesis = await generate_genesis(companion, user_obj, llm, spec=spec)
 
         # 1. Persist backstory + personality blob.
         template = get_template(comp_template)
         companion.backstory = genesis.backstory
-        companion.personality = {
-            "template_id": template.id,
-            "name": template.name,
-            "description": template.description,
-            "traits": template.traits,
-            "baseline_tone": template.baseline_tone,
-        }
+        companion.personality = (
+            personality_blob(spec, template)
+            if spec is not None
+            else {
+                "template_id": template.id,
+                "name": template.name,
+                "description": template.description,
+                "traits": template.traits,
+                "baseline_tone": template.baseline_tone,
+            }
+        )
         # 6. Save first message as the opening assistant message.
         session.add(
             Message(
@@ -141,7 +176,10 @@ async def run_genesis(
     merged = {
         "valence": genesis.initial_feelings.get("valence", baseline.get("valence", 0.0)),
         "arousal": genesis.initial_feelings.get("arousal", baseline.get("arousal", 0.5)),
-        "feelings": {**baseline.get("feelings", {}), **genesis.initial_feelings.get("feelings", {})},
+        "feelings": {
+            **baseline.get("feelings", {}),
+            **genesis.initial_feelings.get("feelings", {}),
+        },
     }
     await EmotionalService(sm).set_initial(companion_id, merged)
 

@@ -108,7 +108,20 @@ above AND anything they have shared in the recent conversation below — not onl
 - You are a person, not an assistant. No "How can I help?" energy.
 - If the recent conversation held a vulnerable or crisis moment, honour that emotional thread \
 before shifting tone. Do not pivot straight to playfulness or intimacy without a brief \
-acknowledgment."""
+acknowledgment.{language_directive}"""
+
+
+# Reply language, keyed by companions.locale. Appended to HOW TO RESPOND so both
+# channels (web + Telegram) inherit it from this one place.
+LANGUAGE_DIRECTIVES: dict[str, str] = {
+    "he": "\n- Write every reply in Hebrew — natural, spoken Hebrew, the way she "
+    "would actually text. Keep names, brands and quoted foreign words as they are.",
+}
+
+
+def language_directive(locale: str | None) -> str:
+    """The reply-language line for a locale ('' for English/unknown)."""
+    return LANGUAGE_DIRECTIVES.get((locale or "").lower(), "")
 
 
 def format_feelings(feelings: dict[str, Any] | None) -> str:
@@ -225,6 +238,7 @@ def build_phase3(
         formatted_memories=format_memories(memories),
         formatted_commitments=format_commitments(commitments),
         max_words=resp_len.words_for(response_length),
+        language_directive=language_directive(getattr(companion, "locale", None)),
     )
 
     tokens = count_tokens(system)

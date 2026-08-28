@@ -169,7 +169,7 @@ def _fmt(ms: float | None) -> str:
     return "     —" if ms is None else f"{ms:7.0f}"
 
 
-def _report(model: str, runs: list[Result], label: str) -> None:
+def _report(model: str, runs: list[Result], label: str, show_text: bool = False) -> None:
     print(f"\n  {model}  ({label})")
     print("    #    ttft_ms  total_ms   tok/s   prompt  out  reasoning")
     for i, r in enumerate(runs, 1):
@@ -188,8 +188,14 @@ def _report(model: str, runs: list[Result], label: str) -> None:
         print(
             f"    ttft   min {min(ttfts):.0f}  median {statistics.median(ttfts):.0f}  max {max(ttfts):.0f} ms"
         )
-    preview = runs[-1]["text"].strip().replace("\n", " ")[:100]
-    print(f"    last reply: {preview}")
+    if show_text:
+        for i, r in enumerate(runs, 1):
+            print(f"\n    --- reply {i} ---")
+            for line in r["text"].strip().splitlines():
+                print(f"    {line}")
+    else:
+        preview = runs[-1]["text"].strip().replace("\n", " ")[:100]
+        print(f"    last reply: {preview}")
 
 
 # ── commands ─────────────────────────────────────────────────────────────────
@@ -210,6 +216,7 @@ def run(
     insecure: bool = typer.Option(
         False, help="Skip TLS verification (mirrors litellm.ssl_verify=False)."
     ),
+    show_text: bool = typer.Option(False, "--show-text", help="Print every reply in full."),
     as_json: bool = typer.Option(False, "--json"),
 ) -> None:
     """Send the same request N times per model and report the timings."""
@@ -266,7 +273,7 @@ def run(
 
         everything[m] = results
         if not as_json:
-            _report(m, results, label)
+            _report(m, results, label, show_text)
 
     if as_json:
         print(

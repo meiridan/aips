@@ -211,6 +211,56 @@ def test_count_tokens_positive():
     assert count_tokens("hello world") > 0
 
 
+_HEBREW = "היי מותק, מה שלומך היום? התגעגעתי אליך נורא ורציתי לספר לך משהו."
+
+
+def _o200k(text: str) -> int:
+    import tiktoken
+
+    return len(tiktoken.get_encoding("o200k_base").encode(text))
+
+
+def test_count_tokens_defaults_to_main_chat_model():
+    from maya.conversation import prompt_builder as pb
+    from maya.llm.service import TIER_MODELS
+
+    assert pb._DEFAULT_MODEL == TIER_MODELS["main"][0]
+
+
+def test_grok_count_is_upper_bound_on_o200k():
+    """Raw o200k under-counts Grok, so the guard must never return less."""
+    from maya.conversation.prompt_builder import count_tokens
+
+    for text in (_HEBREW, "hello world, how are you today?", _HEBREW + " hello"):
+        assert count_tokens(text, model="xai/grok-4.6") >= _o200k(text)
+
+
+def test_grok_hebrew_scales_harder_than_english():
+    """Hebrew costs Grok ~1.2-1.34x its o200k count; English ~1.02x."""
+    from maya.conversation.prompt_builder import count_tokens
+
+    english = "the quick brown fox jumps over the lazy dog " * 4
+    he_ratio = count_tokens(_HEBREW, model="xai/grok-4.6") / _o200k(_HEBREW)
+    en_ratio = count_tokens(english, model="xai/grok-4.6") / _o200k(english)
+    assert he_ratio > en_ratio
+    # Measured Hebrew ratio against xAI /v1/tokenize-text was 1.21-1.34.
+    assert 1.2 <= he_ratio <= 1.5
+
+
+def test_openai_model_count_is_unscaled():
+    from maya.conversation.prompt_builder import count_tokens
+
+    assert count_tokens(_HEBREW, model="gpt-4o") == _o200k(_HEBREW)
+
+
+def test_hebrew_fraction_handles_letterless_text():
+    from maya.conversation.prompt_builder import _hebrew_letter_fraction
+
+    assert _hebrew_letter_fraction("") == 0.0
+    assert _hebrew_letter_fraction("123 !!! 😊") == 0.0
+    assert _hebrew_letter_fraction("שלום") == 1.0
+
+
 def test_token_budget_trips():
     from maya.conversation.prompt_builder import TokenBudgetExceeded
 

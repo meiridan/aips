@@ -297,7 +297,7 @@ def test_llm_tier_nonempty(tier):
 def test_llm_main_primary_is_grok():
     from maya.llm.service import LLMService
 
-    assert LLMService()._tiers["main"][0] == "xai/grok-3"
+    assert LLMService()._tiers["main"][0] == "xai/grok-4.6"
 
 
 def test_llm_main_has_fallbacks():

@@ -29,7 +29,7 @@ async def test_fallback_to_gpt_when_grok_fails(messages):
     gpt_reply = _fake_response("hi from gpt", "openai/gpt-4o")
 
     async def side_effect(*, model, **kwargs):
-        if model == "xai/grok-3":
+        if model == "xai/grok-4.6":
             raise RuntimeError("grok down")
         if model == "openai/gpt-4o":
             return gpt_reply
@@ -59,7 +59,7 @@ async def test_all_models_fail_raises(messages):
 
 async def test_cost_logged_once_per_successful_call(messages):
     """Exactly one cost log line ('llm_call') fires on a successful call."""
-    reply = _fake_response("ok", "xai/grok-3")
+    reply = _fake_response("ok", "xai/grok-4.6")
 
     with (
         patch("maya.llm.service.litellm.acompletion", new=AsyncMock(return_value=reply)),
@@ -74,4 +74,4 @@ async def test_cost_logged_once_per_successful_call(messages):
     # Cost was actually recorded in that log call.
     _, kwargs = mock_log.info.call_args
     assert kwargs["cost_usd"] == 0.0034
-    assert kwargs["model"] == "xai/grok-3"
+    assert kwargs["model"] == "xai/grok-4.6"

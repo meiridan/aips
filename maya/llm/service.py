@@ -16,9 +16,17 @@ log = get_logger("maya.llm")
 # Disable SSL verification for litellm (workaround for cert issues)
 litellm.ssl_verify = False
 
+# Default sampling/reasoning knobs for the primary chat path.
+DEFAULT_TEMPERATURE = 0.4
+DEFAULT_REASONING_EFFORT = "low"
+
+# Models that accept a `reasoning_effort` param. Sending it to a non-reasoning
+# model (gpt-4o etc.) is a 400, which would burn a fallback slot for no reason.
+REASONING_MODELS: frozenset[str] = frozenset({"xai/grok-4.6"})
+
 TIER_MODELS: dict[str, list[str]] = {
     "main": [
-        "xai/grok-3",  # primary
+        "xai/grok-4.6",  # primary
         "openai/gpt-4o",  # fallback 1
         "anthropic/claude-sonnet-4-6",  # fallback 2 (refuses NSFW)
     ],
@@ -27,7 +35,9 @@ TIER_MODELS: dict[str, list[str]] = {
         "anthropic/claude-haiku-4-5-20251001",
     ],
     "fast": [
-        "xai/grok-3-mini",
+        # Non-reasoning on purpose: this tier backs moment analysis on the
+        # critical path, where reasoning tokens cost ~3x the latency.
+        "xai/grok-4.20-0309-non-reasoning",
         "openai/gpt-4o-mini",
     ],
 }
@@ -49,7 +59,7 @@ class LLMService:
         model_tier: str = "main",
         json_mode: bool = False,
         max_tokens: int = 800,
-        temperature: float = 0.8,
+        temperature: float = DEFAULT_TEMPERATURE,
         purpose: str = "main_response",
     ) -> str:
         """Try primary -> fallback 1 -> fallback 2. Raise LLMUnavailableError on all fail.
@@ -69,6 +79,8 @@ class LLMService:
                 "temperature": temperature,
                 "timeout": 30,  # bound tail latency; a hung provider falls over to the next
             }
+            if model in REASONING_MODELS:
+                kwargs["reasoning_effort"] = DEFAULT_REASONING_EFFORT
             if json_mode:
                 kwargs["response_format"] = {"type": "json_object"}
 
@@ -99,7 +111,7 @@ class LLMService:
         messages: list[dict],
         model_tier: str = "main",
         max_tokens: int = 800,
-        temperature: float = 0.8,
+        temperature: float = DEFAULT_TEMPERATURE,
         purpose: str = "main_response",
     ) -> AsyncIterator[str]:
         """Stream the reply token-by-token, trying primary then fallbacks.
@@ -118,6 +130,9 @@ class LLMService:
             started = time.perf_counter()
             chunks: list[Any] = []
             yielded = False
+            extra: dict[str, Any] = {}
+            if model in REASONING_MODELS:
+                extra["reasoning_effort"] = DEFAULT_REASONING_EFFORT
             try:
                 stream = await litellm.acompletion(
                     model=model,
@@ -127,6 +142,7 @@ class LLMService:
                     stream=True,
                     stream_options={"include_usage": True},
                     timeout=45,  # bound tail latency (fail-over only before first token)
+                    **extra,
                 )
                 async for chunk in stream:
                     chunks.append(chunk)

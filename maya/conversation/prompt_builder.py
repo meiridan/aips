@@ -10,6 +10,10 @@ from typing import Any
 
 from maya.conversation import response_length as resp_len
 from maya.db.models import Message
+from maya.llm.service import TIER_MODELS
+
+# Count against whatever actually serves the main chat path.
+_DEFAULT_MODEL = TIER_MODELS["main"][0]
 
 SYSTEM_PROMPT_TEMPLATE = """You are Maya, an AI companion. You are warm, curious, and emotionally present. \
 Stay in character.
@@ -134,18 +138,50 @@ def format_commitments(commitments: list[Any]) -> str:
     return "\n".join(lines)
 
 
-def count_tokens(text: str, model: str = "gpt-4o") -> int:
-    """Approximate token count via tiktoken (OpenAI tokenizer).
+# Grok ships no public tokenizer, so we count with tiktoken's o200k_base and
+# scale. Ratios measured against xAI's /v1/tokenize-text on grok-4.6:
+#   pure English  -> grok/o200k ~1.02
+#   pure Hebrew   -> grok/o200k ~1.21-1.34  (o200k UNDER-counts, so a raw
+#                                            o200k count is NOT a safe guard)
+# Interpolating on the Hebrew letter fraction stays above the measured ratio in
+# every sample without throwing away a third of the budget on English prompts.
+_GROK_BASE_FACTOR = 1.05
+_GROK_HEBREW_FACTOR = 0.35
+_HEBREW_RANGE = ("\u0590", "\u05ff")
 
-    For Grok the count is approximate but a safe upper-bound guard.
+
+def _hebrew_letter_fraction(text: str) -> float:
+    """Share of alphabetic characters that are Hebrew (0.0-1.0)."""
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return 0.0
+    lo, hi = _HEBREW_RANGE
+    return sum(lo <= c <= hi for c in letters) / len(letters)
+
+
+def count_tokens(text: str, model: str = _DEFAULT_MODEL) -> int:
+    """Upper-bound token count for `text` under `model`'s tokenizer.
+
+    Exact for OpenAI models (tiktoken). For Grok it is a deliberate
+    over-estimate — this backs a budget guard, so erring low would let an
+    over-budget prompt through.
     """
+    import math
+
     import tiktoken
 
+    is_grok = "grok" in model or model.startswith("xai/")
     try:
         enc = tiktoken.encoding_for_model(model)
     except KeyError:
-        enc = tiktoken.get_encoding("cl100k_base")
-    return len(enc.encode(text))
+        enc = tiktoken.get_encoding("o200k_base" if is_grok else "cl100k_base")
+
+    tokens = len(enc.encode(text))
+    if not is_grok:
+        return tokens
+
+    factor = _GROK_BASE_FACTOR + _GROK_HEBREW_FACTOR * _hebrew_letter_fraction(text)
+    return math.ceil(tokens * factor)
 
 
 def build_phase3(

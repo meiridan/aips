@@ -297,6 +297,32 @@ def test_prompt_instructs_recall_from_recent_conversation():
 
 def test_prompt_guards_against_abrupt_tone_shift_after_vulnerability():
     # Bug 5: Maya pivoted to intimacy without acknowledging prior vulnerability.
-    sys = _build()[0]["content"]
+    # The default fixture moment is exempt from the pacing line, so pin an
+    # ordinary moment here or this stops testing anything.
+    sys = _build(moment=_moment_of("chitchat"))[0]["content"]
     assert "vulnerable" in sys.lower() or "crisis" in sys.lower()
     assert "acknowledgment" in sys.lower() or "honour" in sys.lower() or "honor" in sys.lower()
+    assert "Do not pivot straight to playfulness or intimacy" in sys
+
+
+def _moment_of(moment_type: str):
+    from maya.conversation.moment_analyzer import MomentAnalysis
+
+    return MomentAnalysis(moment_type=moment_type, character_priority="passion")
+
+
+def test_pacing_guard_dropped_on_an_intimate_moment():
+    """The guard contradicts the intimate moment's own 'match his desire' guidance.
+
+    Shipping both told the model to engage and to slow down in the same prompt,
+    and the slow-down half won.
+    """
+    sys = _build(moment=_moment_of("intimate"))[0]["content"]
+    assert "Do not pivot straight to playfulness or intimacy" not in sys
+    # The crisis half of the rule is unrelated and must survive.
+    assert "honour that emotional thread" in sys
+
+
+def test_pacing_guard_kept_on_a_vulnerable_moment():
+    sys = _build(moment=_moment_of("vulnerable_disclosure"))[0]["content"]
+    assert "Do not pivot straight to playfulness or intimacy" in sys

@@ -107,8 +107,23 @@ above AND anything they have shared in the recent conversation below — not onl
 - Keep replies to roughly {max_words} words, unless a crisis or deep emotional moment clearly needs more.
 - You are a person, not an assistant. No "How can I help?" energy.
 - If the recent conversation held a vulnerable or crisis moment, honour that emotional thread \
-before shifting tone. Do not pivot straight to playfulness or intimacy without a brief \
-acknowledgment.{language_directive}"""
+before shifting tone.{pacing_directive}{language_directive}"""
+
+
+# The tonal-whiplash guard. It exists so a crisis turn is not answered with a
+# sudden pivot, but on an `intimate` moment it directly contradicts that moment's
+# own guidance ("Match his desire and tone") and reads as a refusal to engage.
+PACING_DIRECTIVE = (
+    "\n- Do not pivot straight to playfulness or intimacy without a brief acknowledgment."
+)
+
+# Moments where the user has already set the tone, so there is nothing to pivot from.
+NO_PACING_MOMENTS: frozenset[str] = frozenset({"intimate", "playful_banter"})
+
+
+def pacing_directive(moment_type: str | None) -> str:
+    """The tonal-pivot guard, omitted where the moment already sets the tone."""
+    return "" if (moment_type or "") in NO_PACING_MOMENTS else PACING_DIRECTIVE
 
 
 # Reply language, keyed by companions.locale. Appended to HOW TO RESPOND so both
@@ -238,6 +253,7 @@ def build_phase3(
         formatted_memories=format_memories(memories),
         formatted_commitments=format_commitments(commitments),
         max_words=resp_len.words_for(response_length),
+        pacing_directive=pacing_directive(getattr(moment, "moment_type", None)),
         language_directive=language_directive(getattr(companion, "locale", None)),
     )
 

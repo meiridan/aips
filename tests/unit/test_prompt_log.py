@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from maya.conversation import prompt_log
@@ -29,6 +31,18 @@ def test_log_is_off_when_unset(monkeypatch):
 def test_log_can_be_forced_off(monkeypatch, value):
     monkeypatch.setenv(prompt_log.ENV_VAR, value)
     assert prompt_log.log_path() is None
+
+
+def test_reader_falls_back_to_the_default_path(monkeypatch):
+    """The tailing shell has no env var — only the server process does."""
+    monkeypatch.delenv(prompt_log.ENV_VAR, raising=False)
+    assert prompt_log.log_path() is None
+    assert prompt_log.read_path() == Path(prompt_log.DEFAULT_PATH)
+
+
+def test_reader_honours_an_explicit_path(monkeypatch, tmp_path):
+    monkeypatch.setenv(prompt_log.ENV_VAR, str(tmp_path / "elsewhere.log"))
+    assert prompt_log.read_path() == tmp_path / "elsewhere.log"
 
 
 def test_disabled_log_writes_nothing(tmp_path, monkeypatch):

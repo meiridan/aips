@@ -734,22 +734,26 @@ def prompt_log_cmd(
     """Show the living prompt log — every prompt actually sent, plus its reply.
 
     Unlike `show-prompt`, which renders a hypothetical turn, this is the record
-    of real ones. Needs MAYA_PROMPT_LOG set (run_local.sh sets it).
+    of real ones. Reads MAYA_PROMPT_LOG if set, else the default path — the
+    server writes it, so this works from any shell.
     """
     import time
 
     from maya.conversation import prompt_log
 
-    path = prompt_log.log_path()
-    if path is None:
-        typer.echo(
-            f"Prompt log is off. Enable it with {prompt_log.ENV_VAR}="
-            f"{prompt_log.DEFAULT_PATH} (or any path)."
-        )
-        raise typer.Exit(1)
+    # Read the default path even when this shell has no env var set: the server
+    # is the process that writes, and run_local.sh exports it only there.
+    path = prompt_log.read_path()
     if not path.exists():
-        typer.echo(f"{path} does not exist yet — send a message first.")
-        raise typer.Exit(1)
+        if not follow:
+            typer.echo(
+                f"{path} does not exist yet — send a message first, "
+                f"or use --follow to wait for it."
+            )
+            raise typer.Exit(1)
+        typer.echo(f"── waiting for {path} (ctrl-c to stop) ──")
+        while not path.exists():
+            time.sleep(0.4)
 
     with path.open("r", encoding="utf-8") as fh:
         tail = fh.readlines()[-lines:] if lines > 0 else []

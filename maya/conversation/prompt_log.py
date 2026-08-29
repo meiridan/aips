@@ -39,6 +39,16 @@ def log_path() -> Path | None:
     return Path(raw.strip()).expanduser()
 
 
+def read_path() -> Path:
+    """Where a reader should look, whether or not this shell enables writing.
+
+    Writing is opt-in via the env var, and `run_local.sh` sets it on the server
+    process — not in the terminal you tail from. A reader that demanded the same
+    env var would report "log is off" while the server was busily writing it.
+    """
+    return log_path() or Path(DEFAULT_PATH)
+
+
 def _append(text: str) -> None:
     """Append to the log, swallowing any IO error — this is never load-bearing."""
     path = log_path()

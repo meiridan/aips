@@ -2,24 +2,19 @@
 
 __version__ = "1.0.0"
 
-# Patch httpx SSL globally so OpenAI/Mem0 honor our custom cert bundle.
-# Must run before any HTTP client is constructed.
-import os as _os
+# Trust the OS certificate store for every outbound TLS connection, so the
+# Zscaler MITM root installed on the dev machine is honoured WITHOUT turning
+# verification off. Must run before any HTTP client is constructed — every
+# script in scripts/ and tools/ does the same thing for the same reason.
+#
+# A prior version monkeypatched httpx.Client.__init__ to force verify=False
+# whenever SSL_CERT_FILE was set. That disabled certificate verification for
+# every xAI / OpenAI / mem0 / Telegram call in local dev (SSL_CERT_FILE is
+# exported from the developer's shell profile) while its comment claimed the
+# opposite. Do not reintroduce it.
+try:
+    import truststore as _truststore
 
-_CERT = _os.environ.get("SSL_CERT_FILE")
-if _CERT and _os.path.exists(_CERT):
-    import httpx as _httpx
-
-    _orig_sync = _httpx.Client.__init__
-    _orig_async = _httpx.AsyncClient.__init__
-
-    def _patched_sync(self, *args, **kwargs):
-        kwargs["verify"] = False
-        _orig_sync(self, *args, **kwargs)
-
-    def _patched_async(self, *args, **kwargs):
-        kwargs["verify"] = False
-        _orig_async(self, *args, **kwargs)
-
-    _httpx.Client.__init__ = _patched_sync
-    _httpx.AsyncClient.__init__ = _patched_async
+    _truststore.inject_into_ssl()
+except Exception:  # noqa: BLE001 - fall back to certifi; verification stays ON
+    pass

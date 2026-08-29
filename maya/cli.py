@@ -1,4 +1,4 @@
-"""Maya CLI (Typer). Commands: seed, chat, state, history, reset.
+"""Maya CLI (Typer). Commands: seed, chat, state, show-prompt, history, reset.
 
 Active context comes from MAYA_USER_ID / MAYA_COMPANION_ID env vars
 (printed by `maya seed`), overridable via flags.
@@ -241,6 +241,103 @@ def state(
     if data["last_ago"] is not None:
         typer.echo("")
         typer.echo(f"Last interaction: {data['last_ago']} minutes ago")
+
+
+@app.command(name="show-prompt")
+def show_prompt(
+    message: str = typer.Argument(..., help="The user turn to assemble a prompt for."),
+    moment: str = typer.Option(
+        "default",
+        "--moment",
+        help="'default' (what the live main call gets), 'auto' (real analyzer, "
+        "costs a fast-tier call), or a moment type to force (e.g. intimate).",
+    ),
+    turns: int = typer.Option(30, "--turns", help="Recent messages to include."),
+    with_memory: bool = typer.Option(
+        True, "--memory/--no-memory", help="Run the real memory search (costs an embedding)."
+    ),
+    raw: bool = typer.Option(False, "--raw", help="Print only the system prompt."),
+    as_json: bool = typer.Option(False, "--json", help="Dump the whole thing as JSON."),
+    companion_id: str = typer.Option(None, "--companion-id"),
+    user_id: str = typer.Option(None, "--user-id"),
+) -> None:
+    """Dump the fully-assembled system prompt with per-field source attribution.
+
+    `build_phase3` composes from six sources; when the companion behaves against
+    its instructions the cause is usually two of them disagreeing, which no
+    single file shows. Read-only — saves no message, advances no state.
+    """
+    cid = _resolve(companion_id, "MAYA_COMPANION_ID")
+    uid = _resolve(user_id, "MAYA_USER_ID")
+
+    async def _run():
+        from maya.conversation.prompt_debug import build_dump
+
+        return await build_dump(
+            uid,
+            cid,
+            message,
+            moment_selector=moment,
+            turns=turns,
+            with_memory=with_memory,
+        )
+
+    try:
+        dump = _run_with_dispose(_run)
+    except ValueError as exc:
+        typer.secho(str(exc), fg="red")
+        raise typer.Exit(code=1) from exc
+    except LookupError as exc:
+        typer.secho(str(exc), fg="red")
+        raise typer.Exit(code=1) from exc
+
+    if raw:
+        typer.echo(dump.system)
+        return
+
+    if as_json:
+        import json as _json
+        from dataclasses import asdict
+
+        typer.echo(_json.dumps(asdict(dump), indent=2, ensure_ascii=False))
+        return
+
+    meta = dump.meta
+    typer.echo(f"═══ ASSEMBLED PROMPT — {meta['companion_name']} ═══")
+    typer.echo(
+        f"user: {meta['user_name']} | template: {meta['template_id']} | "
+        f"locale: {meta['locale'] or '(none)'} | recent turns: {meta['recent_turns']}"
+    )
+    typer.echo(f"moment: {meta['moment_source']}")
+    if not meta["memory_searched"]:
+        typer.secho("memory: SKIPPED (--no-memory) — memory block is empty", fg="yellow")
+    over = dump.over_budget
+    typer.secho(
+        f"tokens: {dump.tokens} / {dump.budget}" + ("  ⚠ OVER BUDGET" if over else ""),
+        fg="red" if over else None,
+    )
+
+    typer.echo("")
+    typer.echo("═══ SOURCES ═══")
+    seen_notes: set[str] = set()
+    width = max(len(s.field) for s in dump.sources)
+    for s in dump.sources:
+        typer.echo(f"  {s.field.ljust(width)}  {s.value}")
+        typer.secho(f"  {' ' * width}  ← {s.origin}", fg="bright_black")
+        if s.note and s.note not in seen_notes:
+            seen_notes.add(s.note)
+            typer.secho(f"  {' ' * width}  ⚠ {s.note}", fg="yellow")
+
+    typer.echo("")
+    typer.echo("═══ SYSTEM PROMPT ═══")
+    typer.echo(dump.system)
+
+    turn_msgs = dump.messages[1:]
+    typer.echo("")
+    typer.echo(f"═══ CHAT TURNS ({len(turn_msgs)}) ═══")
+    for m in turn_msgs:
+        body = " ".join(m["content"].split())
+        typer.echo(f"  [{m['role']}] {body if len(body) <= 120 else body[:119] + '…'}")
 
 
 @app.command()

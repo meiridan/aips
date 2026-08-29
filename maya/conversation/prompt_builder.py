@@ -224,10 +224,13 @@ def build_phase3(
     user_name: str,
     hours_since_last: float | int = 0,
     response_length: int = resp_len.DEFAULT,
+    enforce_budget: bool = True,
 ) -> list[dict[str, str]]:
     """Assemble the full Phase-3 chat-completion message list.
 
-    Raises TokenBudgetExceeded if the system block blows the hard budget.
+    Raises TokenBudgetExceeded if the system block blows the hard budget. Only
+    the introspection path (`prompt_debug`) passes enforce_budget=False — an
+    over-budget prompt is precisely the one worth looking at.
     """
     personality = getattr(companion, "personality", {}) or {}
     personality_desc = personality.get("description") or "A warm, real person."
@@ -258,7 +261,7 @@ def build_phase3(
     )
 
     tokens = count_tokens(system)
-    if tokens > TOKEN_BUDGET:
+    if enforce_budget and tokens > TOKEN_BUDGET:
         raise TokenBudgetExceeded(
             f"Phase-3 system prompt is {tokens} tokens (budget {TOKEN_BUDGET})"
         )

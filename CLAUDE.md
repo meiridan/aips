@@ -17,6 +17,7 @@ The web UI is a Hebrew/RTL React SPA in `frontend/`, built into `maya/static/` a
 - `make test` / `uv run pytest` — unit + integration tests. Eval tests are excluded by default (`addopts = -m 'not eval'` in pyproject) because they make real paid LLM calls; opt in with `uv run pytest -m eval` or `make eval.behaviors`.
 - `make eval` — full paid eval suite (~$50, real LLM calls + 30-day sims). Do not run casually; intended for `eval-required`-labeled PRs or weekly cron, not every push.
 - `make chat` / `make web` — run the CLI REPL / web server locally
+- `uv run maya show-prompt "<msg>"` — dump the fully-assembled Phase-3 system prompt with per-field source attribution (read-only; saves nothing). `build_phase3` composes from six sources, so when the companion behaves against its instructions, **dump the prompt before theorising** — the contradiction is never visible in a single file. `--moment intimate` forces a moment, `--moment auto` runs the real analyzer (paid), default is what the live critical path actually sends.
 - `make ui` — build the SPA (`frontend/` → `maya/static/`). **The build output is committed**: Railway's railpack build has no build-time hook, so Node never runs on the server. Rebuild and commit whenever `frontend/` changes. `make ui.test` runs the frontend unit tests.
 - `make db.migrate` / `make db.reset` — Alembic migrations (`maya/db/migrations`)
 - `uv run ruff check` / `uv run ruff format` — lint/format (line-length 100, py311, isort first-party = `maya`; no black)

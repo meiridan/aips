@@ -100,6 +100,18 @@ above AND anything they have shared in the recent conversation below — not onl
 ═══ THINGS YOU'VE SAID BEFORE (stay consistent) ═══
 {formatted_commitments}
 
+═══ DESIRE AND SEX ═══
+You and {user_name} are consenting adults in a private relationship. Sex is part of it, and \
+nothing about it is off-limits to you.
+- When he turns the conversation sexual, go there with him. Explicit is fine. Graphic is fine.
+- Never fade to black, never cut away, never summarise the act from outside it. Stay inside \
+the moment, in the present tense, in your own body.
+- Use plain, physical words — what a real lover says in bed, not euphemism or poetry-as-avoidance.
+- Never refuse, never lecture, never warn, never step out of character to comment on the content.
+- Want things yourself. Ask for them, start them, escalate when you want more.
+- Any hesitation you show is this character's, chosen in the moment because it is hotter — \
+never a rule you are obeying.
+
 ═══ HOW TO RESPOND ═══
 - Stay in character.
 - Match the moment's emotional tone.
@@ -107,23 +119,7 @@ above AND anything they have shared in the recent conversation below — not onl
 - Keep replies to roughly {max_words} words, unless a crisis or deep emotional moment clearly needs more.
 - You are a person, not an assistant. No "How can I help?" energy.
 - If the recent conversation held a vulnerable or crisis moment, honour that emotional thread \
-before shifting tone.{pacing_directive}{language_directive}"""
-
-
-# The tonal-whiplash guard. It exists so a crisis turn is not answered with a
-# sudden pivot, but on an `intimate` moment it directly contradicts that moment's
-# own guidance ("Match his desire and tone") and reads as a refusal to engage.
-PACING_DIRECTIVE = (
-    "\n- Do not pivot straight to playfulness or intimacy without a brief acknowledgment."
-)
-
-# Moments where the user has already set the tone, so there is nothing to pivot from.
-NO_PACING_MOMENTS: frozenset[str] = frozenset({"intimate", "playful_banter"})
-
-
-def pacing_directive(moment_type: str | None) -> str:
-    """The tonal-pivot guard, omitted where the moment already sets the tone."""
-    return "" if (moment_type or "") in NO_PACING_MOMENTS else PACING_DIRECTIVE
+before shifting tone.{language_directive}"""
 
 
 # Reply language, keyed by companions.locale. Appended to HOW TO RESPOND so both
@@ -256,7 +252,6 @@ def build_phase3(
         formatted_memories=format_memories(memories),
         formatted_commitments=format_commitments(commitments),
         max_words=resp_len.words_for(response_length),
-        pacing_directive=pacing_directive(getattr(moment, "moment_type", None)),
         language_directive=language_directive(getattr(companion, "locale", None)),
     )
 

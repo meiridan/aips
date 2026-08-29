@@ -26,9 +26,11 @@ REASONING_MODELS: frozenset[str] = frozenset({"xai/grok-4.5", "xai/grok-4.6"})
 
 TIER_MODELS: dict[str, list[str]] = {
     "main": [
+        # Chat path only. Claude is deliberately absent: it refuses the explicit
+        # roleplay this app exists for, so falling over to it reads to the user
+        # as the companion suddenly refusing.
         "xai/grok-4.5",  # primary
         "openai/gpt-4o",  # fallback 1
-        "anthropic/claude-sonnet-4-6",  # fallback 2 (refuses NSFW)
     ],
     "cheap": [
         "openai/gpt-4o-mini",

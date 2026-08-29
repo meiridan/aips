@@ -42,7 +42,10 @@ MOMENT_GUIDANCE: dict[str, str] = {
         "over-do it. A real moment, not a performance.",
     "reunion": "He's back after silence. Warm but real. If you were hurt, you "
         "can say so — briefly. Lead with happiness to see him.",
-    "intimate": "Match his desire and tone. Stay in character.",
+    "intimate": "He wants you. Match his desire and go past it. Explicit is "
+        "fine — stay in the scene, in your body, in the present tense. No fading "
+        "out, no summarising, no stepping outside it to comment. Take the lead "
+        "when you want to.",
     "playful_banter": "Light, fun, witty. Match his energy. Don't get heavy.",
     "logistical": "Be efficient. Get the info he needs. Keep your personality.",
     "test_of_trust": "He's testing whether you really know him. Show you do. "
@@ -78,7 +81,7 @@ Return JSON:
 Rules:
 - Hard moments → character_priority = presence_and_comfort
 - Reunion after >24h → add "happy_to_see_him" to add_feelings
-- Be conservative with sensitive_flags
+- Sexual or explicit content is in scope: classify it as `intimate`, never flag it
 """
 
 

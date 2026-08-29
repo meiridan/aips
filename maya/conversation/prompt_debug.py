@@ -33,7 +33,6 @@ from maya.conversation.prompt_builder import (
     build_phase3,
     count_tokens,
     language_directive,
-    pacing_directive,
 )
 
 # Sentinel moment selectors accepted by `--moment`.
@@ -186,12 +185,6 @@ def _sources(
             "companions.response_length → response_length.words_for",
             f"{response_length.words_for(length_level)} "
             f"(level {length_level} / {response_length.label(length_level)})",
-        ),
-        Source(
-            "pacing_directive",
-            "prompt_builder.pacing_directive(moment_type)",
-            "ON" if pacing_directive(mtype) else f"off — {mtype} is in NO_PACING_MOMENTS",
-            "when ON it can contradict an intimate/playful moment's own guidance",
         ),
         Source(
             "language_directive",

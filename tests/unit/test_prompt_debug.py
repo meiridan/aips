@@ -12,7 +12,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from maya.conversation.moment_analyzer import MomentAnalysis, default_moment
+from maya.conversation.moment_analyzer import (
+    MOMENT_GUIDANCE,
+    MomentAnalysis,
+    default_moment,
+)
 from maya.conversation.prompt_builder import TOKEN_BUDGET, TokenBudgetExceeded, build_phase3
 from maya.conversation.prompt_debug import (
     Source,
@@ -58,16 +62,11 @@ def test_every_source_names_a_real_origin():
         assert s.origin.strip(), f"{s.field} has no origin"
 
 
-def test_pacing_directive_source_reports_the_exemption():
-    """The guard that contradicted an intimate moment must be visible as off."""
+def test_moment_guidance_source_reports_the_live_guidance():
+    """The intimate moment's guidance must be visible in the dump verbatim."""
     intimate = _sources(**_fixtures(moment=MomentAnalysis(moment_type="intimate")))
-    row = next(s for s in intimate if s.field == "pacing_directive")
-    assert row.value.startswith("off")
-    assert "NO_PACING_MOMENTS" in row.value
-
-    chitchat = _sources(**_fixtures())
-    row = next(s for s in chitchat if s.field == "pacing_directive")
-    assert row.value == "ON"
+    row = next(s for s in intimate if s.field == "moment_specific_guidance")
+    assert "He wants you" in row.value
 
 
 def test_language_directive_source_reports_locale():
@@ -103,7 +102,7 @@ class TestResolveMoment:
     def test_forced_moment_carries_its_real_guidance(self):
         moment, desc = resolve_moment("intimate")
         assert moment.moment_type == "intimate"
-        assert moment.guidance() == "Match his desire and tone. Stay in character."
+        assert moment.guidance() == MOMENT_GUIDANCE["intimate"]
         assert "forced" in desc
 
     def test_unknown_moment_is_rejected_with_the_valid_list(self):

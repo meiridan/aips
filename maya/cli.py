@@ -1,4 +1,4 @@
-"""Maya CLI (Typer). Commands: seed, chat, state, show-prompt, history, reset.
+"""Maya CLI (Typer). Commands: seed, chat, state, show-prompt, prompt-log, history, reset.
 
 Active context comes from MAYA_USER_ID / MAYA_COMPANION_ID env vars
 (printed by `maya seed`), overridable via flags.
@@ -724,6 +724,46 @@ def web(
     typer.echo("   Open http://localhost:8000 in your browser")
 
     uvicorn.run(web_app, host=host, port=port)
+
+
+@app.command(name="prompt-log")
+def prompt_log_cmd(
+    follow: bool = typer.Option(False, "--follow", "-f", help="Stream new turns as they happen."),
+    lines: int = typer.Option(200, "--lines", "-n", help="How much of the tail to print first."),
+) -> None:
+    """Show the living prompt log — every prompt actually sent, plus its reply.
+
+    Unlike `show-prompt`, which renders a hypothetical turn, this is the record
+    of real ones. Needs MAYA_PROMPT_LOG set (run_local.sh sets it).
+    """
+    import time
+
+    from maya.conversation import prompt_log
+
+    path = prompt_log.log_path()
+    if path is None:
+        typer.echo(
+            f"Prompt log is off. Enable it with {prompt_log.ENV_VAR}="
+            f"{prompt_log.DEFAULT_PATH} (or any path)."
+        )
+        raise typer.Exit(1)
+    if not path.exists():
+        typer.echo(f"{path} does not exist yet — send a message first.")
+        raise typer.Exit(1)
+
+    with path.open("r", encoding="utf-8") as fh:
+        tail = fh.readlines()[-lines:] if lines > 0 else []
+        typer.echo("".join(tail), nl=False)
+        if not follow:
+            return
+        fh.seek(0, os.SEEK_END)
+        typer.echo(f"\n── following {path} (ctrl-c to stop) ──")
+        while True:
+            chunk = fh.read()
+            if chunk:
+                typer.echo(chunk, nl=False)
+            else:
+                time.sleep(0.4)
 
 
 if __name__ == "__main__":

@@ -28,3 +28,6 @@ frontend/node_modules/
 # Local agent/tool state
 .claude/settings.local.json
 .serena/
+
+# Living prompt log (maya prompt-log) — local debugging only
+logs/

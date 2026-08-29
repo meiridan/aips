@@ -83,6 +83,41 @@ def _make_orch(db_sessionmaker, llm, memory):
 
 
 @pytest.mark.asyncio
+async def test_turn_is_written_to_the_living_prompt_log(
+    db_sessionmaker, seeded_ids, tmp_path, monkeypatch
+):
+    """The log must capture the real turn — prompt and reply under one id."""
+    from maya.conversation import prompt_log
+
+    path = tmp_path / "prompts.log"
+    monkeypatch.setenv(prompt_log.ENV_VAR, str(path))
+
+    uid, cid = seeded_ids
+    orch = _make_orch(db_sessionmaker, _FakeLLM(), _FakeMemory())
+    await orch.handle_message(uid, cid, "hey")
+
+    text = path.read_text(encoding="utf-8")
+    assert "═══ DESIRE AND SEX ═══" in text  # the whole system block, not a preview
+    assert "[user] hey" in text
+    assert "I'm right here with you." in text
+    turn_id = text.split("turn ")[1].split(" ")[0]
+    assert f"REPLY · turn {turn_id}" in text
+
+
+@pytest.mark.asyncio
+async def test_prompt_log_stays_empty_when_disabled(
+    db_sessionmaker, seeded_ids, tmp_path, monkeypatch
+):
+    from maya.conversation import prompt_log
+
+    monkeypatch.setenv(prompt_log.ENV_VAR, "off")
+    uid, cid = seeded_ids
+    orch = _make_orch(db_sessionmaker, _FakeLLM(), _FakeMemory())
+    await orch.handle_message(uid, cid, "hey")
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
 async def test_handle_message_returns_reply(db_sessionmaker, seeded_ids):
     uid, cid = seeded_ids
     orch = _make_orch(db_sessionmaker, _FakeLLM(), _FakeMemory())

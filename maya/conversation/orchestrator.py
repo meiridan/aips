@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from maya import runtime_cache
 from maya.companions.commitments import CommitmentService
 from maya.companions.templates import get_template
-from maya.conversation import response_length
+from maya.conversation import prompt_log, response_length
 from maya.conversation.moment_analyzer import (
     MomentAnalysis,
     MomentAnalyzer,
@@ -36,6 +36,7 @@ from maya.conversation.prompt_builder import (
     SYSTEM_PROMPT_TEMPLATE,
     build_basic,
     build_phase3,
+    count_tokens,
     format_memories,
 )
 from maya.db.models import Companion, Message
@@ -71,6 +72,7 @@ StepCallback = Callable[[str, str, dict], Awaitable[None] | None]
 class _TurnCtx:
     """Everything carried from prompt-prep into reply finalization."""
 
+    turn_id: str
     user_id: uuid.UUID
     companion_id: uuid.UUID
     companion_name: str
@@ -140,7 +142,6 @@ class Orchestrator:
         bookkeeping. Post-processing is still awaited before returning
         (Decision 2: no loss on disconnect)."""
         spans: dict[str, int] = {}
-        turn_id = uuid.uuid4().hex[:8]
         t_prep = time.perf_counter()
         ctx = await self._prepare(user_id, companion_id, content, on_step, spans)
         spans["prepare_ms"] = int((time.perf_counter() - t_prep) * 1000)
@@ -163,7 +164,7 @@ class Orchestrator:
         t_fin = time.perf_counter()
         await self._finalize(ctx, response)
         spans["finalize_ms"] = int((time.perf_counter() - t_fin) * 1000)
-        log.info("turn_timing", turn_id=turn_id, channel="sync", **spans)
+        log.info("turn_timing", turn_id=ctx.turn_id, channel="sync", **spans)
         return response
 
     async def stream_message(
@@ -183,7 +184,6 @@ class Orchestrator:
         no loss on disconnect).
         """
         spans: dict[str, int] = {}
-        turn_id = uuid.uuid4().hex[:8]
         t_prep = time.perf_counter()
         ctx = await self._prepare(user_id, companion_id, content, on_step, spans)
         spans["prepare_ms"] = int((time.perf_counter() - t_prep) * 1000)
@@ -213,7 +213,7 @@ class Orchestrator:
         t_fin = time.perf_counter()
         await self._finalize(ctx, response)
         spans["finalize_ms"] = int((time.perf_counter() - t_fin) * 1000)
-        log.info("turn_timing", turn_id=turn_id, channel="web", **spans)
+        log.info("turn_timing", turn_id=ctx.turn_id, channel="web", **spans)
 
     async def _prepare(
         self,
@@ -233,6 +233,7 @@ class Orchestrator:
         hides the DB round trips. The companion load is sequential ahead of the
         gather only because emotional.get needs its baseline — and it is cached,
         so it is ~0ms after the first turn."""
+        turn_id = uuid.uuid4().hex[:8]
         await _emit(on_step, "step", "📥 Received user message", {"content": content[:100]})
 
         # Companion first: emotional.get needs its baseline. Cached → ~0ms.
@@ -297,7 +298,18 @@ class Orchestrator:
         if not (prompt and prompt[-1]["role"] == "user" and prompt[-1]["content"] == content):
             prompt.append({"role": "user", "content": content})
         await _emit(on_step, "step", "🔨 Built Phase-3 prompt", {"messages": len(prompt)})
+
+        # The living log: what was actually sent, not what show-prompt predicts.
+        # Token counting is not free, so only pay for it when the log is on.
+        if prompt_log.log_path() is not None:
+            prompt_log.record_prompt(
+                turn_id=turn_id,
+                companion_name=companion.name if companion else "Maya",
+                prompt=prompt,
+                tokens=count_tokens(prompt[0]["content"]),
+            )
         return _TurnCtx(
+            turn_id=turn_id,
             user_id=user_id,
             companion_id=companion_id,
             companion_name=companion.name if companion else "Maya",
@@ -336,6 +348,7 @@ class Orchestrator:
             moment=moment,
             on_step=ctx.on_step,
         )
+        prompt_log.record_reply(turn_id=ctx.turn_id, reply=response)
         await _emit(ctx.on_step, "step", "🎉 Message handling complete", {})
 
     async def _post_process(

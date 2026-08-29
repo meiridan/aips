@@ -164,9 +164,13 @@ BASE="http://${HOST/0.0.0.0/127.0.0.1}:$PORT"
 # ── serve ────────────────────────────────────────────────────────────────────
 if [[ $CHECK -eq 0 ]]; then
   step "[5/5] Serving"
+  # The living prompt log: every prompt actually sent, plus the reply it drew.
+  # Local-only by default — nothing sets this in production.
+  export MAYA_PROMPT_LOG="${MAYA_PROMPT_LOG:-logs/prompts.log}"
   echo "  Web UI     $BASE"
   echo "  Debug view $BASE/?debug=1"
   echo "  API docs   $BASE/docs"
+  echo "  Prompt log $MAYA_PROMPT_LOG  (uv run maya prompt-log -f)"
   echo ""
   echo "  Ctrl-C to stop."
   RELOAD_ARGS=(--reload --reload-dir maya)

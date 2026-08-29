@@ -2,9 +2,14 @@
 # Stop: verify before claiming done.
 #
 #   1. Uncommitted Python under maya/ or tests/ -> run the unit suite (~8s, 379
-#      tests, no Postgres needed) and mypy over maya/. Both are green as of the
-#      commit that added this hook, so any failure here is something you just
-#      introduced. Turns "should be fine" into evidence.
+#      tests, no Postgres needed), mypy over maya/, and ruff over maya + tests.
+#      All three are green as of the commit that added them, so any failure here
+#      is something you just introduced. Turns "should be fine" into evidence.
+#
+#      ruff deliberately covers `maya tests` and NOT `scripts/`: those files call
+#      truststore.inject_into_ssl() before importing httpx/asyncpg, so their E402
+#      is load-bearing and `ruff check --fix` would reorder the imports above the
+#      inject call and silently break the Zscaler workaround.
 #   2. Uncommitted frontend/ changes with no matching maya/static/ change -> the
 #      committed bundle is stale and production would keep serving the old SPA.
 #
@@ -35,6 +40,13 @@ $(printf '%s' "$out" | tail -30)
     problems+="mypy FAILS on maya/. It was clean before this change:
 
 $(printf '%s' "$out" | grep -v '^mypy.ini:' | tail -25)
+
+"
+  fi
+  if ! out=$(uv run ruff check maya tests 2>&1); then
+    problems+="ruff FAILS on maya/ or tests/. It was clean before this change:
+
+$(printf '%s' "$out" | tail -25)
 
 "
   fi

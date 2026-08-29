@@ -102,7 +102,9 @@ async def ws_run(websocket: WebSocket):
 
     try:
         data = await websocket.receive_json()
-        cmd = data.get("cmd", "run_all")
+        # The client also sends `cmd` ('run_all' / 'run_scenario'), but the
+        # server does not need it: the presence of sid/vid already selects the
+        # subset to run.
         model_tier = data.get("model_tier", "cheap")
         auto_cleanup = data.get("auto_cleanup", True)
         target_sid = data.get("sid")

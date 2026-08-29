@@ -7,6 +7,7 @@ opinions, and preferences out of the companion's own replies.
 
 from __future__ import annotations
 
+import re
 import uuid
 
 from sqlalchemy import select
@@ -26,6 +27,10 @@ EXTRACTION_PROMPT = """The companion {name} just said this to the person she's t
 What did she reveal about HERSELF — identity claims, promises, opinions, or \
 preferences? Only genuine first-person self-statements (NOT facts about him).
 
+Do NOT extract in-the-moment stalling as a standing preference. "let's talk first",
+"that's too fast for me", "I'm not the type to jump straight in" and the like are
+things she said about ONE moment, not who she is. Skip them.
+
 Return JSON:
 {{"commitments": [
   {{"content": "I ...", "commitment_type": "identity|preference|opinion|promise", "importance": 0.0-1.0}}
@@ -34,6 +39,36 @@ Return JSON:
 Return an empty list if she revealed nothing about herself."""
 
 _VALID_TYPES = {"identity", "preference", "opinion", "promise"}
+
+# Deflections the companion produced in one moment, which the extractor kept
+# promoting to standing character facts. Stored, they land in the prompt under
+# "THINGS YOU'VE SAID BEFORE (stay consistent)" — where they outrank the persona
+# and the explicit-content permission, so she refuses forever on the strength of
+# having refused once. The prompt asks the extractor to skip these; this is the
+# belt-and-braces filter for when it doesn't.
+_REFUSAL_PATTERNS = re.compile(
+    "|".join(
+        (
+            r"talk first",
+            r"jumps? (?:straight|right) in",
+            r"jump in right away",
+            r"too fast",
+            r"slow (?:down|things down)",
+            r"not (?:exactly )?the (?:type|kind) to",
+            r"מהיר מדי",      # too fast
+            r"מהר מדי",       # too fast (var.)
+            r"קופצת ישר",     # jumps straight in
+            r"לדבר קודם",     # to talk first
+            r"נדבר קודם",     # let's talk first
+        )
+    ),
+    re.IGNORECASE,
+)
+
+
+def is_refusal_artifact(content: str) -> bool:
+    """True when a candidate commitment is a one-off deflection, not a trait."""
+    return bool(_REFUSAL_PATTERNS.search(content))
 
 
 class CommitmentService:
@@ -118,6 +153,9 @@ class CommitmentService:
         for c in data.get("commitments", []) or []:
             content = str(c.get("content", "")).strip()
             if not content:
+                continue
+            if is_refusal_artifact(content):
+                log.info("commitment_refusal_skipped", content=content)
                 continue
             ctype = str(c.get("commitment_type", "identity"))
             if ctype not in _VALID_TYPES:

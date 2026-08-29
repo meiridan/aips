@@ -276,6 +276,72 @@ async def test_commitment_add_and_get_recent_ordered(db_sessionmaker, seeded_ids
     assert rows[0].content == "I am a photographer"
 
 
+# ───────────────────── commitments: refusal artifacts ─────────────────────
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "I prefer to talk first.",
+        "I don't jump straight into things like that.",
+        "I am not someone who jumps straight into sex.",
+        "It feels too fast for me to jump straight into it.",
+        "I am not exactly the type to jump in right away.",
+        "I want to slow down.",
+        "אני לא כזאת שקופצת ישר לדברים כאלה.",
+        "זה מרגיש מהיר מדי בשבילי.",
+        "בוא נדבר קודם, בסדר?",
+    ],
+)
+def test_refusal_artifacts_are_recognised(content):
+    from maya.companions.commitments import is_refusal_artifact
+
+    assert is_refusal_artifact(content)
+
+
+@pytest.mark.parametrize(
+    "content",
+    [
+        "I am 24 years old.",
+        "I work as a nurse because it gives me a sense of doing something good.",
+        "I speak softly and directly, including about desire",
+        "I am his girlfriend and initiate closeness without stalling",
+        "I insist on doing yoga every morning.",
+        "אני אוהבת אותך.",
+    ],
+)
+def test_real_commitments_survive_the_filter(content):
+    from maya.companions.commitments import is_refusal_artifact
+
+    assert not is_refusal_artifact(content)
+
+
+@pytest.mark.asyncio
+async def test_extraction_drops_refusals_and_keeps_traits(db_sessionmaker, seeded_ids):
+    """One deflection used to become a permanent character fact.
+
+    Stored, it lands in the prompt under "THINGS YOU'VE SAID BEFORE (stay
+    consistent)" and outranks the persona, so she refuses forever after
+    refusing once.
+    """
+    from maya.companions.commitments import CommitmentService
+
+    class _LLM:
+        async def chat_json(self, messages, **kwargs):
+            return {
+                "commitments": [
+                    {"content": "I prefer to talk first.", "commitment_type": "preference"},
+                    {"content": "I am a nurse.", "commitment_type": "identity"},
+                ]
+            }
+
+    _uid, cid = seeded_ids
+    svc = CommitmentService(db_sessionmaker, llm=_LLM())
+    stored = await svc.extract_from_message(cid, "Maya", "some reply")
+    assert [c.content for c in stored] == ["I am a nurse."]
+    assert [r.content for r in await svc.get_recent(cid)] == ["I am a nurse."]
+
+
 @pytest.mark.asyncio
 async def test_commitment_limit_respected(db_sessionmaker, seeded_ids):
     from maya.companions.commitments import CommitmentService

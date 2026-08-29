@@ -10,9 +10,11 @@ import asyncio
 import os
 import uuid
 from datetime import UTC
+from typing import Any, cast
 
 import typer
 from sqlalchemy import delete, func, select
+from sqlalchemy.engine import CursorResult
 
 from maya.config import get_settings
 from maya.conversation.orchestrator import Orchestrator
@@ -43,9 +45,7 @@ def _run_with_dispose(factory):
 def _resolve(opt: str | None, env: str) -> uuid.UUID:
     raw = opt or os.getenv(env)
     if not raw:
-        typer.secho(
-            f"No {env} set. Run `maya seed` first, then export it.", fg="red"
-        )
+        typer.secho(f"No {env} set. Run `maya seed` first, then export it.", fg="red")
         raise typer.Exit(code=1)
     try:
         return uuid.UUID(raw)
@@ -78,9 +78,7 @@ def seed(
             user = User(name=user_name, description=user_description)
             session.add(user)
             await session.flush()
-            companion = Companion(
-                user_id=user.id, name=companion_name, template_id=template_id
-            )
+            companion = Companion(user_id=user.id, name=companion_name, template_id=template_id)
             session.add(companion)
             await session.commit()
             uid, cid = user.id, companion.id
@@ -97,10 +95,7 @@ def seed(
         typer.echo("")
         typer.secho(f"[{companion_name}] {first_message}", fg="magenta")
         typer.echo("")
-    typer.echo(
-        f"Set as active: export MAYA_USER_ID={user_id} "
-        f"MAYA_COMPANION_ID={companion_id}"
-    )
+    typer.echo(f"Set as active: export MAYA_USER_ID={user_id} MAYA_COMPANION_ID={companion_id}")
 
 
 @app.command()
@@ -176,7 +171,7 @@ def state(
                     .limit(5)
                 )
             ).all()
-            events = [(e.occurred_at, e.event_type, e.summary) for e in events]
+            event_rows = [(e.occurred_at, e.event_type, e.summary) for e in events]
 
         baseline = get_template(comp.template_id).baseline_emotional
         emo = await EmotionalService(sm).get(cid, baseline=baseline)
@@ -203,7 +198,7 @@ def state(
             "trust": rel.trust_level,
             "days": rel.days_known,
             "interactions": rel.total_interactions,
-            "events": events,
+            "events": event_rows,
             "commitments": [(c.commitment_type, c.content, c.importance) for c in commits],
             "last_ago": last_ago,
         }
@@ -233,7 +228,7 @@ def state(
     if data["events"]:
         for occurred, etype, summary in data["events"]:
             day = str(occurred)[:10]
-            typer.echo(f"  - {day}: {etype} (\"{summary}\")")
+            typer.echo(f'  - {day}: {etype} ("{summary}")')
     else:
         typer.echo("  (none yet)")
     typer.echo("")
@@ -292,11 +287,9 @@ def reset(
         if not memory_only:
             sm = get_sessionmaker()
             async with sm() as session:
-                result = await session.execute(
-                    delete(Message).where(Message.companion_id == cid)
-                )
+                result = await session.execute(delete(Message).where(Message.companion_id == cid))
                 await session.commit()
-                deleted_msgs = result.rowcount or 0
+                deleted_msgs = cast(CursorResult[Any], result).rowcount or 0
 
         deleted_mem = 0
         if memory or memory_only:
@@ -310,9 +303,7 @@ def reset(
     if not memory_only:
         typer.echo(f"Deleted {deleted_msgs} messages.")
     if memory or memory_only:
-        typer.echo(
-            f"Wiped memory store for this user/companion (status: {deleted_mem})."
-        )
+        typer.echo(f"Wiped memory store for this user/companion (status: {deleted_mem}).")
 
 
 memory_app = typer.Typer(help="Inspect long-term memory.")
@@ -480,9 +471,7 @@ def simulate(
     typer.echo(f"Simulating {persona} for {days} days (seed {seed})...")
     sim, out = _run_with_dispose(_run)
     typer.echo("")
-    typer.echo(
-        f"Total: {len(sim.transcript)} messages, ${sim.cost_usd:.2f} in LLM costs"
-    )
+    typer.echo(f"Total: {len(sim.transcript)} messages, ${sim.cost_usd:.2f} in LLM costs")
     typer.echo(f"Saved to {out}")
 
 
@@ -500,16 +489,23 @@ def evaluate(
         sim = SimulationResult.from_json(path)
         score = await evaluate_simulation(sim)
         await insert_eval_run(
-            sim.persona, days=sim.days, seed=sim.seed, score=score,
-            transcript_path=path, cost_usd=sim.cost_usd,
+            sim.persona,
+            days=sim.days,
+            seed=sim.seed,
+            score=score,
+            transcript_path=path,
+            cost_usd=sim.cost_usd,
         )
         return sim, score
 
     sim, score = _run_with_dispose(_run)
     typer.echo(f"═══ Evaluation: {sim.persona}, {sim.days} days ═══")
     for dim in (
-        "feels_alive", "feels_consistent", "feels_emotionally_intelligent",
-        "feels_like_real_relationship", "memory_recall_quality",
+        "feels_alive",
+        "feels_consistent",
+        "feels_emotionally_intelligent",
+        "feels_like_real_relationship",
+        "memory_recall_quality",
     ):
         typer.echo(f"{dim}: {getattr(score, dim):.1f} / 10")
     if score.standout_moments:
@@ -528,7 +524,8 @@ def evaluate_suite(
     days: int = typer.Option(30, "--days"),
     seed: int = typer.Option(42, "--seed"),
     fail_on_regression: bool = typer.Option(
-        False, "--fail-on-regression",
+        False,
+        "--fail-on-regression",
         help="Exit non-zero if any score drops >1.0 vs the persona's last run (P4.8).",
     ),
 ) -> None:
@@ -556,8 +553,12 @@ def evaluate_suite(
             sim.to_json(out)
             score = await evaluate_simulation(sim)
             await insert_eval_run(
-                key, days=sim.days, seed=sim.seed, score=score,
-                transcript_path=out, cost_usd=sim.cost_usd,
+                key,
+                days=sim.days,
+                seed=sim.seed,
+                score=score,
+                transcript_path=out,
+                cost_usd=sim.cost_usd,
             )
             results.append((key, score, sim.cost_usd, find_regressions(baseline, score)))
         return results
@@ -621,10 +622,10 @@ def web(
     import uvicorn
 
     from maya.web import app as web_app
-    
+
     typer.echo(f"🚀 Starting Maya Web UI on http://{host}:{port}")
     typer.echo("   Open http://localhost:8000 in your browser")
-    
+
     uvicorn.run(web_app, host=host, port=port)
 
 

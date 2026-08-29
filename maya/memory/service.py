@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-from typing import Any
+from typing import Any, cast
 
 # Silence Mem0 / PostHog telemetry (noisy SSL errors otherwise)
 os.environ.setdefault("MEM0_TELEMETRY", "False")
@@ -22,6 +22,7 @@ os.environ.setdefault("POSTHOG_DISABLED", "1")
 import litellm
 from mem0 import Memory  # noqa: E402
 from sqlalchemy import text
+from sqlalchemy.engine import CursorResult
 
 from maya.db.session import get_sessionmaker  # noqa: E402
 from maya.llm.service import LLMService  # noqa: E402
@@ -41,9 +42,7 @@ def _scope(user_id: uuid.UUID, companion_id: uuid.UUID) -> dict[str, str]:
 
 async def _embed(text_: str) -> list[float]:
     """Generate embedding via litellm (OpenAI text-embedding-3-small)."""
-    resp = await litellm.aembedding(
-        model=f"openai/{_EMBED_MODEL}", input=[text_]
-    )
+    resp = await litellm.aembedding(model=f"openai/{_EMBED_MODEL}", input=[text_])
     return resp.data[0]["embedding"]
 
 
@@ -153,7 +152,9 @@ class MemoryService:
             )
             async with self._sessionmaker() as session:
                 rows = (
-                    await session.execute(sql, {"uid": str(user_id), "aid": str(companion_id), "lim": limit})
+                    await session.execute(
+                        sql, {"uid": str(user_id), "aid": str(companion_id), "lim": limit}
+                    )
                 ).fetchall()
             return [
                 {
@@ -191,10 +192,7 @@ class MemoryService:
                 rows = (
                     await session.execute(sql, {"uid": str(user_id), "aid": str(companion_id)})
                 ).fetchall()
-            return [
-                {"id": r.id, "text": r.memory or "", "created_at": r.created_at}
-                for r in rows
-            ]
+            return [{"id": r.id, "text": r.memory or "", "created_at": r.created_at} for r in rows]
         except Exception as exc:  # noqa: BLE001
             log.error("memory_get_all_error", error=str(exc))
             return []
@@ -241,7 +239,7 @@ class MemoryService:
                     {"idp": f"{memory_id}%", "uid": str(user_id), "aid": str(companion_id)},
                 )
                 await session.commit()
-                return result.rowcount or 0
+                return cast(CursorResult[Any], result).rowcount or 0
         except Exception as exc:  # noqa: BLE001
             log.error("memory_delete_by_id_error", error=str(exc))
             return 0

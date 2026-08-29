@@ -29,7 +29,7 @@ def normalize(level: object) -> int:
             return parsed
         return DEFAULT
     try:
-        n = int(level)  # type: ignore[arg-type]
+        n = int(level)  # type: ignore[call-overload]  # `level` is object; guarded by except
     except (TypeError, ValueError):
         return DEFAULT
     return n if n in _WORDS else DEFAULT

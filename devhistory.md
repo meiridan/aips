@@ -6,6 +6,138 @@ otherwise evaporate. The commit list itself lives in git; this file is the *why*
 
 ---
 
+## 2026-08-29 — TLS verification was off, and tooling to stop re-deriving the same context
+
+Session goal was Claude Code tooling, not a bug hunt. The bug was found by asking mypy why it had
+7 standing errors — two of which turned out to be the type checker objecting to the mechanism of a
+real security bug rather than to its consequences.
+
+### 1. `verify=False` had been shipping as "honor our custom cert bundle"
+
+`maya/__init__.py` monkeypatched `httpx.Client.__init__` and `httpx.AsyncClient.__init__` at import
+time, under this comment:
+
+> Patch httpx SSL globally so OpenAI/Mem0 honor our custom cert bundle.
+
+The body did the opposite:
+
+```python
+_CERT = _os.environ.get("SSL_CERT_FILE")
+if _CERT and _os.path.exists(_CERT):
+    def _patched_sync(self, *args, **kwargs):
+        kwargs["verify"] = False        # ← _CERT is never passed to httpx
+```
+
+`_CERT` was only ever a **trigger condition**. It was never handed to httpx as a trust store. So
+whenever `SSL_CERT_FILE` pointed at a file that existed, every httpx client the app built — xAI,
+OpenAI, mem0, Telegram — ran with certificate verification disabled.
+
+**Measured, not inferred.** Reproducing the old patch verbatim and probing badssl.com:
+
+| endpoint | old patch | after `66b1e6e` |
+|---|---|---|
+| `self-signed.badssl.com` | **ACCEPTED 200** | rejected |
+| `expired.badssl.com` | **ACCEPTED 200** | rejected |
+| `wrong.host.badssl.com` | **ACCEPTED 200** | rejected |
+| `api.x.ai/v1/models` | 401 | 401 |
+| `api.openai.com/v1/models` | 401 | 401 |
+
+An expired certificate and a hostname mismatch both sailed through. The real providers still
+answer after the fix, so nothing was traded away for it.
+
+**Scope — local dev only, but always on.**
+
+- Production was never affected. `provision_railway.sh` sets exactly ten service variables
+  (`DATABASE_URL`, `REDIS_URL`, `XAI_API_KEY`, `OPENAI_API_KEY`, `ENVIRONMENT`, `LITELLM_LOG`, and
+  the four optional Anthropic/Telegram ones). `SSL_CERT_FILE` is not among them, so the guard was
+  false on Railway and the patch never installed.
+- Locally it was live on **every** run: `~/.zshrc:8` exports
+  `SSL_CERT_FILE=~/.certs/all-certs.pem`, and that bundle exists (326 KB). Every `make chat`,
+  `make web`, and test run started from that shell had verification off.
+
+**Fix** (`66b1e6e`): delete the patch, call `truststore.inject_into_ssl()` — which is what all five
+`scripts/deploy/*.py`, `scripts/smoke_test.py` and `tools/grokbench/bench.py` already did.
+`truststore` was already a dependency. It reads the OS trust store, so the Zscaler root is honoured
+*with verification left on*. Wrapped in `try/except` so a truststore failure degrades to certifi
+with verification still enabled — it fails closed, not open.
+
+**General lesson:** the comment was not merely stale, it asserted the inverse of the code. It
+shipped in the initial commit (`e39844a`, 2026-06-23) and was read past for just over two months.
+When a comment describes a security property, verify the property, not the comment. The two-line
+mypy complaint (`Cannot assign to a method`) was pointing at this the whole time and had been
+living in the "known noise" pile.
+
+### 2. Why mypy had 7 standing errors, and why that mattered
+
+7 errors from 4 causes, none of them runtime bugs, all pre-existing (`535066c`):
+
+- `response_length.py:32` — the ignore was written `[arg-type]` but mypy reports `[call-overload]`
+  for `int(level)` where `level: object`. With `warn_unused_ignores` on, one typo produced **two**
+  errors: the unused ignore, plus the real error left unsuppressed.
+- `memory/service.py`, `cli.py` — `rowcount` is on `CursorResult`, not the `Result` that
+  `session.execute()` is typed to return. Correct at runtime for DML.
+- `cli.py` — `events` rebound from `List[RelationshipEvent]` to a list of tuples.
+- `__init__.py` — §1.
+
+The point of clearing them is not tidiness. A checker that is red on arrival gets skipped, which is
+exactly how §1 survived. Zero is now enforced by a Stop hook, so the next non-zero is something
+just introduced.
+
+### 3. `maya show-prompt` — acting on the 2026-08-28 lesson
+
+The previous entry ended with "dump the fully-assembled prompt before theorising", but no command
+did that, so the next investigation would have re-derived it by hand. `feaa8db` adds one.
+
+Design decisions that are not obvious from the diff:
+
+- **`--moment default` is the default, and it means `default_moment()`.** That is what the live
+  critical path actually sends: `_prepare` builds the prompt with a neutral moment so the main call
+  can start immediately, and the real classification lands in post-processing. A dump that showed
+  the *classified* moment would show a prompt the model never received. `--moment auto` runs the
+  real analyzer; any type can be forced.
+- **Read-only.** `_prepare` saves the user message as part of its gather; the dump must not, or
+  inspecting a bug would mutate the conversation being inspected.
+- **`build_phase3` gained `enforce_budget: bool = True`.** An over-budget prompt is precisely the
+  one worth looking at, so raising instead of rendering would defeat the command.
+- **The source map has a tripwire.** `_sources` hand-maps all 21 placeholders to their origin, so it
+  would rot silently. `test_source_map_covers_every_template_field` parses the template's
+  `{placeholders}` and asserts the map covers exactly that set.
+
+Verified against the live local companion: `pacing_directive` reads `ON` for chitchat and
+`off — intimate is in NO_PACING_MOMENTS` when forced intimate, matching its presence and absence in
+the assembled text. The `dc50162` investigation is now one command.
+
+### 4. Hooks, and one blind spot
+
+`c6d7e2f` moves the inline ruff hook into `.claude/hooks/post_edit.sh` and adds path-keyed
+reminders, a spend guard, and a pre-stop gate. Reasoning worth keeping:
+
+- **Reminders beat CLAUDE.md for cross-file rituals.** `058139a` trimmed CLAUDE.md precisely because
+  always-loaded guidance competes for attention. A `PostToolUse` reminder keyed on
+  `maya/web.py` costs nothing until that file is touched.
+- **The Stop gate runs tests + mypy but *not* ruff.** `tests/phase2_runner/server.py:105` has a
+  standing `F841`, so `ruff check` over the whole repo is red on arrival — see §2 for why that
+  disqualifies it as a gate. `ruff check maya` alone is clean; the blocker is one unused variable
+  in a test runner.
+- **The spend guard matches command text, so writing *about* a blocked command trips it.** This was
+  found the direct way: the commit message for `c6d7e2f` described the teardown target and was
+  blocked by its own hook. Workaround is `git commit -F <file>`. Left as-is — making the matcher
+  context-aware is not worth the complexity for a rare false positive with a one-step escape.
+
+### 5. Open threads
+
+- **mem0 is still the dominant critical-path leg** (carried over from 2026-08-28 §6 — untouched
+  this session).
+- **`ruff check` cannot join the Stop gate** until `tests/phase2_runner/server.py:105` is cleared.
+  One-line deletion, deliberately left out of this session's commits to keep them scoped.
+- **4 commits are unpushed** to `github.com/meiridan/aips` — this session's. `origin/main` is at
+  `058139a`, so the 2026-08-28 backlog has since been pushed and that entry's "13 commits are
+  unpushed" note is now historical. Nothing from either session has been *deployed*: production
+  still predates the `74e0291` model switch. The `66b1e6e` TLS fix is local-dev-only in effect, so
+  it is not a production exposure.
+
+---
+
 ## 2026-08-28 — wizard commit, local stack, Grok latency, and a self-contradicting prompt
 
 ### 1. Committing the creation wizard

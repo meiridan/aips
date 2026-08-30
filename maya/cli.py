@@ -772,3 +772,81 @@ def prompt_log_cmd(
 
 if __name__ == "__main__":
     app()
+
+
+@app.command(name="claim-account")
+def claim_account(
+    email: str = typer.Option(..., "--email", help="Email address to attach."),
+    password: str = typer.Option(
+        ..., "--password", prompt=True, hide_input=True, confirmation_prompt=True
+    ),
+    user_id: str | None = typer.Option(None, "--user-id", help="Defaults to the oldest user."),
+) -> None:
+    """Attach login credentials to an EXISTING user row.
+
+    Before accounts existed the app ran one shared user + companion. That row
+    still owns the live conversation, memories and relationship state, but has
+    no way to sign in. This claims it for an email address so the deployed Maya
+    keeps her history instead of being stranded behind a login she can't pass.
+
+    Run this BEFORE the account-aware build starts serving traffic — otherwise
+    the first signup creates a second, empty companion and the original is only
+    reachable by re-running this command.
+    """
+    from sqlalchemy import select
+
+    from maya.auth import accounts
+
+    async def _run() -> tuple[str, str, bool]:
+        sm = get_sessionmaker()
+        if user_id:
+            target = _resolve(user_id, "MAYA_USER_ID")
+        else:
+            async with sm() as session:
+                oldest = (
+                    await session.execute(select(User).order_by(User.created_at.asc()).limit(1))
+                ).scalar_one_or_none()
+                if oldest is None:
+                    typer.secho("No users exist yet — nothing to claim.", fg="red")
+                    raise typer.Exit(code=1)
+                target = oldest.id
+
+        if problem := accounts.email_problem(email):
+            typer.secho(f"Invalid email: {problem}", fg="red")
+            raise typer.Exit(code=1)
+        from maya.auth.passwords import password_problem
+
+        if problem := password_problem(password):
+            typer.secho(f"Invalid password: {problem}", fg="red")
+            raise typer.Exit(code=1)
+
+        clash = await accounts.get_by_email(sm, email)
+        if clash is not None and clash.id != target:
+            typer.secho(f"{email} already belongs to another account.", fg="red")
+            raise typer.Exit(code=1)
+
+        async with sm() as session:
+            user = await session.get(User, target)
+            if user is None:
+                typer.secho(f"User {target} not found.", fg="red")
+                raise typer.Exit(code=1)
+            had_credentials = user.email is not None
+            user.email = email.strip()
+            user.email_normalized = accounts.normalize(email)
+            await session.commit()
+
+        await accounts.set_password(sm, target, password)
+
+        async with sm() as session:
+            companion = (
+                (await session.execute(select(Companion).where(Companion.user_id == target)))
+                .scalars()
+                .first()
+            )
+        return str(target), (companion.name if companion else "—"), had_credentials
+
+    claimed_id, companion_name, had_credentials = _run_with_dispose(_run)
+    verb = "Re-pointed" if had_credentials else "Claimed"
+    typer.secho(f"✅ {verb} user {claimed_id} → {email}", fg="green")
+    typer.echo(f"   Companion: {companion_name}")
+    typer.echo("   Sign in with this email and password to reach her.")

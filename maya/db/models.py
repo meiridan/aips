@@ -31,6 +31,22 @@ class Base(DeclarativeBase):
 
 class User(Base):
     __tablename__ = "users"
+    __table_args__ = (
+        # Partial so the pre-auth rows (and Google-only accounts) that leave
+        # these NULL don't collide with each other.
+        Index(
+            "ix_users_email_normalized",
+            "email_normalized",
+            unique=True,
+            postgresql_where=text("email_normalized IS NOT NULL"),
+        ),
+        Index(
+            "ix_users_google_sub",
+            "google_sub",
+            unique=True,
+            postgresql_where=text("google_sub IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
@@ -41,6 +57,17 @@ class User(Base):
     telegram_chat_id: Mapped[int | None] = mapped_column(
         BigInteger, unique=True, index=True, nullable=True
     )
+    # ── account fields (§0009) ──────────────────────────────────────────────
+    # All nullable: rows predating auth have none, and a Google-only account
+    # never gets a password. Uniqueness is enforced by partial indexes on the
+    # normalized email and the Google subject, not by these columns.
+    email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # lower(trim(email)) — the column every lookup and the unique index use.
+    email_normalized: Mapped[str | None] = mapped_column(Text, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    google_sub: Mapped[str | None] = mapped_column(Text, nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     timezone: Mapped[str] = mapped_column(Text, server_default="Asia/Jerusalem")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -247,8 +274,11 @@ class CompanionCommitment(Base):
     commitment_type: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="active")
     importance: Mapped[float] = mapped_column(Float, nullable=False, server_default="0.5")
+    # SET NULL, like Memory.source_message_id: a commitment outlives the turn it
+    # came from, and without it any DELETE over `messages` (a reset, `maya
+    # reset`) fails on this constraint instead.
     source_message_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("messages.id")
+        UUID(as_uuid=True), ForeignKey("messages.id", ondelete="SET NULL")
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -274,5 +304,113 @@ class EvalRun(Base):
     transcript_path: Mapped[str | None] = mapped_column(Text)
     cost_usd: Mapped[float | None] = mapped_column(Numeric(10, 4))
     created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+# ───────────────────── auth + billing (§0009) ────────────────────────────────
+
+
+class UserSession(Base):
+    """A logged-in browser session.
+
+    Named `UserSession` rather than `Session` because every module here already
+    deals in SQLAlchemy `AsyncSession` objects called `session`.
+
+    Only the SHA-256 of the cookie value is stored, so the table is useless to
+    anyone who reads it. Server-side (rather than a signed token) because a
+    password reset has to revoke every outstanding session.
+    """
+
+    __tablename__ = "sessions"
+    __table_args__ = (
+        Index("idx_sessions_user", "user_id"),
+        Index("idx_sessions_expires", "expires_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    user_agent: Mapped[str | None] = mapped_column(Text)
+    ip: Mapped[str | None] = mapped_column(Text)
+
+
+class PasswordResetToken(Base):
+    """A single-use, short-lived password-reset grant.
+
+    Hashed like a session token; `used_at` is what makes it single-use.
+    """
+
+    __tablename__ = "password_reset_tokens"
+    __table_args__ = (Index("idx_reset_tokens_user", "user_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Subscription(Base):
+    """One row per user. The only thing entitlement checks are allowed to read.
+
+    Written exclusively by the Stripe webhook — never from a client request, so
+    a user cannot talk themselves into a plan.
+    """
+
+    __tablename__ = "subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    plan_id: Mapped[str] = mapped_column(Text, nullable=False, server_default="free")
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default="inactive")
+    stripe_customer_id: Mapped[str | None] = mapped_column(Text, unique=True)
+    stripe_subscription_id: Mapped[str | None] = mapped_column(Text, unique=True)
+    current_period_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancel_at_period_end: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default="false"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class StripeEvent(Base):
+    """Webhook idempotency guard — Stripe retries, and a replayed
+    `subscription.updated` must not be applied twice."""
+
+    __tablename__ = "stripe_events"
+
+    event_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

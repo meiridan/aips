@@ -7,16 +7,30 @@ import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    Depends,
+    FastAPI,
+    Header,
+    HTTPException,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select, text
 
+from maya.api.auth import router as auth_router
+from maya.api.billing import router as billing_router
+from maya.api.google_auth import router as google_router
+from maya.auth import google
+from maya.auth.deps import current_user, dev_autologin_enabled, user_id_from_websocket
+from maya.billing import entitlements
 from maya.companions import catalog
 from maya.companions.onboarding import AlreadyOnboarded, create_companion, get_state
 from maya.companions.persona_spec import PersonaSpec
 from maya.companions.settings import set_response_length
-from maya.companions.singleton import resolve_singleton
+from maya.companions.singleton import resolve_for_user
 from maya.config import get_settings
 from maya.conversation import response_length
 from maya.conversation.orchestrator import (
@@ -24,7 +38,7 @@ from maya.conversation.orchestrator import (
     RECENT_LIMIT,
     Orchestrator,
 )
-from maya.db.models import Companion, Message
+from maya.db.models import Companion, Message, User
 from maya.db.session import get_engine, get_sessionmaker
 from maya.logging import configure_logging, get_logger
 from maya.telegram.service import get_telegram_service
@@ -34,6 +48,10 @@ log = get_logger("maya.web")
 # Full history is only replayed on WS (re)connect; the UI reconnects every 2s on
 # drop, so cap the replay. Per-turn context still uses RECENT_LIMIT.
 HISTORY_REPLAY_LIMIT = 200
+
+# Application close code for "your session is gone". Codes in 4000-4999 are
+# reserved for the application, and the browser can read them.
+WS_UNAUTHENTICATED = 4401
 
 # One shared orchestrator for all WebSocket connections. Building it runs Mem0's
 # slow sync init (opens its own Neon connection); doing it per-connect blocked
@@ -58,10 +76,13 @@ __all__ = ["app", "MEMORY_LIMIT", "RECENT_LIMIT"]
 async def _warmup() -> None:
     """Pre-pay first-request costs so the first turn after boot/idle is fast.
 
-    Wakes Neon from scale-to-zero, primes the connection pool, warms the
-    singleton/companion/user-name caches, and builds the shared orchestrator
-    (Mem0 init) off the request path. Best-effort — a hiccup here must not
-    block boot."""
+    Wakes Neon from scale-to-zero, primes the connection pool and builds the
+    shared orchestrator (Mem0 init) off the request path. Best-effort — a
+    hiccup here must not block boot.
+
+    Since accounts landed there is no single companion to pre-load: whose
+    caches to warm is not known until someone signs in. The pool ping was
+    always the part that mattered for the Neon cold start."""
     try:
         engine = get_engine()
 
@@ -72,14 +93,8 @@ async def _warmup() -> None:
         # Open a few connections concurrently to prime the pool + wake Neon.
         await asyncio.gather(*[_ping() for _ in range(5)])
 
-        # Warm identity + companion + user_name caches via one real turn's reads.
-        sm = get_sessionmaker()
-        user_id, companion_id, _created, _first = await resolve_singleton(sm, genesis=False)
-        orch = get_orchestrator()
-        await asyncio.gather(
-            orch._load_companion(companion_id),
-            orch._user_name(user_id),
-        )
+        # Build the shared orchestrator (slow Mem0 sync init) off the request path.
+        get_orchestrator()
         log.info("warmup_complete")
     except Exception as exc:  # noqa: BLE001 - warmup is best-effort
         log.warning("warmup_failed", error=str(exc))
@@ -98,6 +113,12 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title="Maya Web UI", lifespan=lifespan)
+
+# Auth lives in its own router; the wizard/chat routes below predate it and
+# stay here.
+app.include_router(auth_router)
+app.include_router(google_router)
+app.include_router(billing_router)
 
 
 # Configure logging
@@ -138,15 +159,23 @@ async def get_index():
 
 @app.get("/api/catalog")
 async def get_catalog() -> dict:
-    """Every wizard option with its Hebrew label and tile — the SPA hardcodes none."""
-    return catalog.as_dict()
+    """Every wizard option with its Hebrew label and tile — the SPA hardcodes none.
+
+    Also carries which sign-in methods are actually available, so the login
+    screen can hide a "Continue with Google" button that would only lead to a
+    503. Public, because the login screen renders before anyone is signed in.
+    """
+    return {
+        **catalog.as_dict(),
+        "auth": {"google": google.is_configured(), "dev_login": dev_autologin_enabled()},
+    }
 
 
 @app.get("/api/companion")
-async def get_companion() -> dict:
+async def get_companion(user: User = Depends(current_user)) -> dict:
     """Onboarding state + saved spec. `onboarded` gates wizard vs chat."""
     sm = get_sessionmaker()
-    _uid, cid, _created, _first = await resolve_singleton(sm, genesis=False)
+    cid = await resolve_for_user(sm, user_id=user.id)
     return await get_state(sm, cid)
 
 
@@ -157,11 +186,13 @@ class CreateCompanionRequest(PersonaSpec):
 
 
 @app.post("/api/companion")
-async def post_companion(payload: CreateCompanionRequest) -> dict:
+async def post_companion(
+    payload: CreateCompanionRequest, user: User = Depends(current_user)
+) -> dict:
     """Apply the wizard spec and run genesis. Slow by design (one LLM call)."""
     spec = PersonaSpec.model_validate(payload.model_dump(exclude={"reset"}))
     sm = get_sessionmaker()
-    _uid, cid, _created, _first = await resolve_singleton(sm, genesis=False)
+    cid = await resolve_for_user(sm, user_id=user.id)
     try:
         first_message = await create_companion(sm, cid, spec, reset=payload.reset)
     except AlreadyOnboarded:
@@ -193,10 +224,10 @@ async def telegram_webhook(
 
 
 @app.get("/companion/response_length")
-async def get_response_length() -> dict:
-    """Current reply-length level (1=short, 2=medium, 3=long) of the shared companion."""
+async def get_response_length(user: User = Depends(current_user)) -> dict:
+    """Current reply-length level (1=short, 2=medium, 3=long) of this companion."""
     sm = get_sessionmaker()
-    _uid, cid, _created, _first = await resolve_singleton(sm)
+    cid = await resolve_for_user(sm, user_id=user.id)
     async with sm() as session:
         comp = await session.get(Companion, cid)
         level = response_length.normalize(getattr(comp, "response_length", response_length.DEFAULT))
@@ -204,14 +235,14 @@ async def get_response_length() -> dict:
 
 
 @app.post("/companion/response_length")
-async def post_response_length(request: Request) -> dict:
-    """Set the shared companion's reply-length level (1|2|3)."""
+async def post_response_length(request: Request, user: User = Depends(current_user)) -> dict:
+    """Set this companion's reply-length level (1|2|3)."""
     body = await request.json()
     level = response_length.parse(str(body.get("level")))
     if level is None:
         raise HTTPException(status_code=422, detail="level must be 1, 2, or 3")
     sm = get_sessionmaker()
-    _uid, cid, _created, _first = await resolve_singleton(sm)
+    cid = await resolve_for_user(sm, user_id=user.id)
     stored = await set_response_length(sm, cid, level)
     return {"ok": True, "level": stored}
 
@@ -219,21 +250,19 @@ async def post_response_length(request: Request) -> dict:
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time chat and debug info."""
+    # Accept BEFORE rejecting an unauthenticated socket: a refused handshake
+    # reaches the browser as a generic connection failure with no readable
+    # close code, and the SPA needs 4401 to tell "session expired" (stop
+    # retrying, show the login screen) from "server restarting" (keep retrying).
     await websocket.accept()
 
-    # Single shared Maya — same companion Telegram talks to (no multi-user).
+    user_id = await user_id_from_websocket(websocket)
+    if user_id is None:
+        await websocket.close(code=WS_UNAUTHENTICATED)
+        return
+
     sm = get_sessionmaker()
-    user_id, companion_id, created, _first = await resolve_singleton(sm)
-    if created:
-        await send_debug(
-            websocket,
-            "system",
-            "Created new user and companion",
-            {
-                "user_id": str(user_id),
-                "companion_id": str(companion_id),
-            },
-        )
+    companion_id = await resolve_for_user(sm, user_id=user_id)
 
     await send_debug(
         websocket,
@@ -281,6 +310,12 @@ async def websocket_endpoint(websocket: WebSocket):
             if not content:
                 continue
 
+            # The entitlement gate. Server-side and before any work: hiding
+            # the compose box would be a hint, not a limit.
+            if await entitlements.quota_exceeded(sm, user_id):
+                await websocket.send_json({"type": "quota_exceeded"})
+                continue
+
             # Echo user message
             await websocket.send_json({"type": "message", "role": "user", "content": content})
 
@@ -323,6 +358,37 @@ async def send_debug(websocket: WebSocket, category: str, label: str, data: dict
         )
     except Exception:
         pass  # Client might have disconnected
+
+
+# ───────────────────────── SPA client routes ──────────────────────────────
+# Registered LAST so it cannot shadow anything above: FastAPI matches routes in
+# definition order, and the /assets and /media mounts are declared near the top.
+#
+# The SPA now has real URLs (/login, /reset-password?token=..., /subscription),
+# and a password-reset link is opened cold from an email client — so a deep GET
+# has to return the app shell rather than a 404.
+
+# Paths owned by the server. A miss under one of these is a genuine 404, not a
+# client route; answering with HTML would turn a typo'd endpoint into a
+# confusing 200 that breaks the SPA's `json<T>()` error handling.
+_SERVER_PREFIXES = (
+    "api/",
+    "auth/",
+    "billing/",
+    "companion/",
+    "telegram/",
+    "assets/",
+    "media/",
+    "ws",
+)
+
+
+@app.get("/{full_path:path}")
+async def spa_catch_all(full_path: str):
+    """Serve the SPA shell for client-side routes."""
+    if full_path.startswith(_SERVER_PREFIXES):
+        raise HTTPException(status_code=404, detail="not_found")
+    return await get_index()
 
 
 if __name__ == "__main__":

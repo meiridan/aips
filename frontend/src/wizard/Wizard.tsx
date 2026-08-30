@@ -25,6 +25,10 @@ interface Props {
   onDone: () => void;
   /** Nothing was changed — enter chat without touching her. */
   onSkip: () => void;
+  /** Sign out — reachable before onboarding, where there is no chat header. */
+  onLogout: () => void;
+  /** Back to the gallery of ready-made companions. */
+  onBack: () => void;
 }
 
 /** Tile proportions per group, matching the reference comps. */
@@ -39,6 +43,8 @@ export default function Wizard({
   onboarded,
   onDone,
   onSkip,
+  onLogout,
+  onBack,
 }: Props) {
   const [state, dispatch] = useReducer(
     wizardReducer,
@@ -94,6 +100,15 @@ export default function Wizard({
 
   return (
     <div className="wizard">
+      <header className="wizard-header">
+        <button type="button" className="header-link" onClick={onBack}>
+          <span className="chev">›</span>
+          {s.preset_back}
+        </button>
+        <button type="button" className="header-link" onClick={onLogout}>
+          {s.logout}
+        </button>
+      </header>
       <h1>{s.title}</h1>
       <Stepper total={total} current={state.step} />
 

@@ -152,3 +152,110 @@ def test_colour_groups_carry_swatches():
     for group in (catalog.HAIR_COLOR, catalog.EYE_COLOR):
         for opt in group.options:
             assert opt.color, f"{group.id}.{opt.id} has no swatch"
+
+
+# ───────────────────────────────── presets ──────────────────────────────────
+
+
+def test_every_preset_spec_is_a_valid_persona_spec():
+    """A typo in PRESETS fails here, not at POST /api/companion."""
+    for preset in catalog.PRESETS:
+        spec = PersonaSpec(name=preset.name, preset=preset.id, **preset.spec)
+        assert spec.name == preset.name
+        assert spec.preset == preset.id
+
+
+def test_preset_ids_are_unique():
+    ids = [p.id for p in catalog.PRESETS]
+    assert len(ids) == len(set(ids))
+
+
+def test_presets_carry_hebrew_copy_and_asset_paths():
+    for preset in catalog.PRESETS:
+        assert preset.name.strip(), f"{preset.id} has no name"
+        assert preset.tagline.strip(), f"{preset.id} has no tagline"
+        assert preset.bio.strip(), f"{preset.id} has no bio"
+        assert preset.voice_line.strip(), f"{preset.id} has no voice line"
+        assert preset.portrait() == f"{catalog.PRESET_ROOT}/{preset.id}/portrait.webp"
+        assert len(preset.gallery()) == catalog.GALLERY_SHOTS
+        assert preset.voice() == f"{catalog.PRESET_ROOT}/{preset.id}/voice.mp3"
+
+
+def test_preset_taglines_do_not_repeat_the_name():
+    """The gallery renders name and tagline together, so the tagline is the
+    trait alone — "מאיה — מאיה — ..." otherwise."""
+    for preset in catalog.PRESETS:
+        assert not preset.tagline.startswith(preset.name), f"{preset.id} repeats her name"
+
+
+def test_preset_filters_are_real_single_choice_groups():
+    """The gallery filters with `spec[group] == option`, which a multi-select
+    group would silently never match."""
+    for gid in catalog.PRESET_FILTERS:
+        group = catalog.GROUPS.get(gid)
+        assert group is not None, f"{gid} is not a catalog group"
+        assert not group.multi, f"{gid} is multi-select and cannot be a filter"
+        for preset in catalog.PRESETS:
+            value = preset.spec.get(gid)
+            assert isinstance(value, str), f"{preset.id} has no {gid} to filter on"
+            assert catalog.option(gid, value) is not None
+
+
+def test_preset_lookup():
+    assert catalog.preset(catalog.PRESETS[0].id) is catalog.PRESETS[0]
+    assert catalog.preset("nope") is None
+
+
+def test_unknown_preset_is_rejected():
+    with pytest.raises(ValidationError):
+        _spec(preset="definitely-not-a-preset")
+
+
+def test_preset_is_optional():
+    """A wizard-built companion carries no preset id."""
+    assert _spec().preset is None
+
+
+def test_preset_descriptions_render():
+    """Every ready-made companion produces a usable persona paragraph."""
+    for preset in catalog.PRESETS:
+        text = to_persona_description(
+            PersonaSpec(name=preset.name, preset=preset.id, **preset.spec)
+        )
+        assert preset.name in text
+        assert "She is" in text
+
+
+# ──────────────────────────── avatar resolution ─────────────────────────────
+
+
+def test_preset_portrait_beats_the_generic_avatar(tmp_path, monkeypatch):
+    from maya.companions import avatars
+
+    monkeypatch.setattr(avatars, "PRESET_DIR", tmp_path / "presets")
+    monkeypatch.setattr(avatars, "AVATAR_DIR", tmp_path / "avatars")
+    (tmp_path / "presets" / "maya").mkdir(parents=True)
+    (tmp_path / "presets" / "maya" / "portrait.webp").write_bytes(b"x")
+    (tmp_path / "avatars" / "realistic").mkdir(parents=True)
+    (tmp_path / "avatars" / "realistic" / "arab.webp").write_bytes(b"x")
+
+    assert avatars.resolve_avatar(_spec(preset="maya")) == "/media/presets/maya/portrait.webp"
+
+
+def test_missing_preset_portrait_falls_back_to_the_old_chain(tmp_path, monkeypatch):
+    from maya.companions import avatars
+
+    monkeypatch.setattr(avatars, "PRESET_DIR", tmp_path / "presets")
+    monkeypatch.setattr(avatars, "AVATAR_DIR", tmp_path / "avatars")
+    (tmp_path / "avatars" / "realistic").mkdir(parents=True)
+    (tmp_path / "avatars" / "realistic" / "arab.webp").write_bytes(b"x")
+
+    assert avatars.resolve_avatar(_spec(preset="maya")) == "/media/avatars/realistic/arab.webp"
+
+
+def test_bare_media_directory_still_resolves_to_none(tmp_path, monkeypatch):
+    from maya.companions import avatars
+
+    monkeypatch.setattr(avatars, "PRESET_DIR", tmp_path / "presets")
+    monkeypatch.setattr(avatars, "AVATAR_DIR", tmp_path / "avatars")
+    assert avatars.resolve_avatar(_spec(preset="maya")) is None

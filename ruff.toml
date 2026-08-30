@@ -10,4 +10,11 @@ known-first-party = ["maya"]
 
 [lint.flake8-bugbear]
 # typer.Option/Argument in a default IS the Typer API — B008 is a false positive here.
-extend-immutable-calls = ["typer.Option", "typer.Argument"]
+# Same for fastapi.Depends/Header: a call in the default is how both libraries
+# declare injection.
+extend-immutable-calls = [
+    "typer.Option",
+    "typer.Argument",
+    "fastapi.Depends",
+    "fastapi.Header",
+]

@@ -1,18 +1,22 @@
-"""Process-local caches for the single-user app.
+"""Process-local caches.
 
-Maya is single-user by product decision (one shared companion for web +
-Telegram, one uvicorn worker — see maya.companions.singleton and the Procfile).
-That makes in-process caching safe and invalidation trivial: there is exactly
-one process, one event loop, and rarely-changing identity/companion rows.
+The Procfile runs one uvicorn worker, so a module dict is a process-wide cache
+with trivial invalidation: one process, one event loop, and rarely-changing
+identity/companion rows. (If the app is ever scaled past one worker, these need
+to move to the provisioned Upstash Redis.)
 
 We only cache things that are effectively immutable per process life or change
 on an explicit, rare write:
-  - the resolved (user_id, companion_id) singleton — immutable once created
+  - each account's companion id — immutable once created
+  - each Telegram chat's account id — immutable once created
   - the Companion row — invalidated on the few write paths (genesis, CLI)
   - the user's display name — effectively constant
 
 We deliberately do NOT cache emotional/relationship state: those are
 read-modify-write every turn (lazy decay, interaction counters).
+
+Nothing here is an authorization decision — sessions are looked up in Postgres
+on every request, so a revoked login is never served from a cache.
 """
 
 from __future__ import annotations
@@ -20,8 +24,11 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-# Resolved singleton identity: (user_id, companion_id). Immutable once set.
-_singleton: tuple[uuid.UUID, uuid.UUID] | None = None
+# user_id -> companion_id. Immutable once the companion row exists.
+_companion_by_user: dict[uuid.UUID, uuid.UUID] = {}
+
+# Telegram chat_id -> user_id. Immutable once the account exists.
+_user_by_telegram_chat: dict[int, uuid.UUID] = {}
 
 # Companion row keyed by companion_id (SQLAlchemy instance, detached/expunged).
 _companions: dict[uuid.UUID, Any] = {}
@@ -30,13 +37,20 @@ _companions: dict[uuid.UUID, Any] = {}
 _user_names: dict[uuid.UUID, str] = {}
 
 
-def get_singleton() -> tuple[uuid.UUID, uuid.UUID] | None:
-    return _singleton
+def get_companion_for_user(user_id: uuid.UUID) -> uuid.UUID | None:
+    return _companion_by_user.get(user_id)
 
 
-def set_singleton(user_id: uuid.UUID, companion_id: uuid.UUID) -> None:
-    global _singleton
-    _singleton = (user_id, companion_id)
+def set_companion_for_user(user_id: uuid.UUID, companion_id: uuid.UUID) -> None:
+    _companion_by_user[user_id] = companion_id
+
+
+def get_user_for_telegram_chat(chat_id: int) -> uuid.UUID | None:
+    return _user_by_telegram_chat.get(chat_id)
+
+
+def set_user_for_telegram_chat(chat_id: int, user_id: uuid.UUID) -> None:
+    _user_by_telegram_chat[chat_id] = user_id
 
 
 def get_companion(companion_id: uuid.UUID) -> Any | None:
@@ -61,7 +75,7 @@ def set_user_name(user_id: uuid.UUID, name: str) -> None:
 
 def clear() -> None:
     """Drop every cached value. For tests and manual invalidation."""
-    global _singleton
-    _singleton = None
+    _companion_by_user.clear()
+    _user_by_telegram_chat.clear()
     _companions.clear()
     _user_names.clear()

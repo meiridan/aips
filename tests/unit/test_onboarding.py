@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from maya.companions import onboarding
 from maya.companions.onboarding import AlreadyOnboarded, create_companion, get_state
 from maya.companions.persona_spec import PersonaSpec
-from maya.db.models import Companion, Message
+from maya.db.models import Companion, CompanionCommitment, Message
 from tests.conftest import db_required
 
 pytestmark = db_required
@@ -118,3 +118,30 @@ async def test_cache_is_invalidated(db_sessionmaker, seeded_ids, fake_genesis):
     runtime_cache.set_companion(cid, SimpleNamespace(name="stale"))
     await create_companion(db_sessionmaker, cid, _spec())
     assert runtime_cache.get_companion(cid) is None
+
+
+async def test_reset_survives_a_commitment_pointing_at_a_message(
+    db_sessionmaker, seeded_ids, fake_genesis
+):
+    """The 500 this reproduces: `companion_commitments.source_message_id` used to
+    block the DELETE over `messages`, so re-creating her from the gallery or the
+    wizard failed with a ForeignKeyViolationError."""
+    uid, cid = seeded_ids
+    async with db_sessionmaker() as session:
+        message = Message(companion_id=cid, user_id=uid, role="user", content="אזכיר לך מחר")
+        session.add(message)
+        await session.flush()
+        session.add(
+            CompanionCommitment(
+                companion_id=cid,
+                content="לשאול איך עבר הראיון",
+                commitment_type="follow_up",
+                source_message_id=message.id,
+            )
+        )
+        await session.commit()
+
+    await create_companion(db_sessionmaker, cid, _spec(), reset=True)
+
+    assert await _count(db_sessionmaker, Message, cid) == 0
+    assert await _count(db_sessionmaker, CompanionCommitment, cid) == 0

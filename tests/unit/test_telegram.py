@@ -82,6 +82,14 @@ async def test_send_message_splits_long_text(monkeypatch):
 # ─────────────────────────── service: routing ───────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def _within_quota(monkeypatch):
+    """These tests are about routing; the entitlement gate has its own file."""
+    from maya.billing import entitlements
+
+    monkeypatch.setattr(entitlements, "quota_exceeded", AsyncMock(return_value=False))
+
+
 def _make_service():
     svc = TelegramService.__new__(TelegramService)
     svc.client = AsyncMock()
@@ -110,7 +118,7 @@ async def test_handle_update_routes_text_to_orchestrator(monkeypatch):
     svc = _make_service()
     uid, cid = uuid.uuid4(), uuid.uuid4()
     monkeypatch.setattr(
-        service_mod, "resolve_singleton", AsyncMock(return_value=(uid, cid, False, None))
+        service_mod, "resolve_by_telegram_chat", AsyncMock(return_value=(uid, cid, False, None))
     )
 
     # The reply is now delivered via the on_reply_done callback (before
@@ -135,7 +143,7 @@ async def test_handle_update_length_command_sets_and_skips_orchestrator(monkeypa
     svc = _make_service()
     uid, cid = uuid.uuid4(), uuid.uuid4()
     monkeypatch.setattr(
-        service_mod, "resolve_singleton", AsyncMock(return_value=(uid, cid, False, None))
+        service_mod, "resolve_by_telegram_chat", AsyncMock(return_value=(uid, cid, False, None))
     )
     set_len = AsyncMock(return_value=1)
     monkeypatch.setattr(service_mod, "set_response_length", set_len)
@@ -152,7 +160,7 @@ async def test_handle_update_length_command_no_arg_shows_usage(monkeypatch):
     svc = _make_service()
     uid, cid = uuid.uuid4(), uuid.uuid4()
     monkeypatch.setattr(
-        service_mod, "resolve_singleton", AsyncMock(return_value=(uid, cid, False, None))
+        service_mod, "resolve_by_telegram_chat", AsyncMock(return_value=(uid, cid, False, None))
     )
     set_len = AsyncMock()
     monkeypatch.setattr(service_mod, "set_response_length", set_len)
@@ -170,7 +178,7 @@ async def test_handle_update_first_ever_companion_gets_greeting(monkeypatch):
     uid, cid = uuid.uuid4(), uuid.uuid4()
     monkeypatch.setattr(
         service_mod,
-        "resolve_singleton",
+        "resolve_by_telegram_chat",
         AsyncMock(return_value=(uid, cid, True, "Hi, I'm Maya")),
     )
 
@@ -226,25 +234,91 @@ def test_webhook_dispatches_on_valid_secret(monkeypatch):
 from tests.conftest import db_required  # noqa: E402
 
 
-@db_required
-@pytest.mark.asyncio
-async def test_resolve_singleton_creates_once_then_reuses(db_sessionmaker, monkeypatch):
-    """First call creates user+companion (+genesis); repeat returns the same pair."""
+@pytest.fixture
+def _fake_genesis(monkeypatch):
+    """Genesis is a paid LLM call; these tests only care that it ran."""
     from maya.companions import singleton as singleton_mod
 
     class _Genesis:
         first_message = "Hi, I'm Maya"
 
-    async def _fake_genesis(companion_id, *, sessionmaker=None, llm=None):
+    async def _run(companion_id, *, sessionmaker=None, llm=None, spec=None):
         return _Genesis()
 
-    monkeypatch.setattr(singleton_mod, "run_genesis", _fake_genesis)
+    monkeypatch.setattr(singleton_mod, "run_genesis", _run)
 
-    uid1, cid1, created1, first1 = await singleton_mod.resolve_singleton(db_sessionmaker)
+
+@db_required
+@pytest.mark.asyncio
+async def test_telegram_chat_creates_once_then_reuses(db_sessionmaker, _fake_genesis):
+    """First contact creates account+companion (+genesis); repeats reuse them."""
+    from maya.companions import singleton as singleton_mod
+
+    uid1, cid1, created1, first1 = await singleton_mod.resolve_by_telegram_chat(
+        db_sessionmaker, chat_id=4242
+    )
     assert created1 is True
     assert first1 == "Hi, I'm Maya"
 
-    uid2, cid2, created2, first2 = await singleton_mod.resolve_singleton(db_sessionmaker)
+    uid2, cid2, created2, first2 = await singleton_mod.resolve_by_telegram_chat(
+        db_sessionmaker, chat_id=4242
+    )
     assert created2 is False
     assert (uid2, cid2) == (uid1, cid1)
     assert first2 is None
+
+
+@db_required
+@pytest.mark.asyncio
+async def test_two_telegram_chats_get_separate_companions(db_sessionmaker, _fake_genesis):
+    """The regression guard for the old shared-singleton behavior: two chats
+    must not land on the same Maya."""
+    from maya.companions import singleton as singleton_mod
+
+    uid_a, cid_a, _, _ = await singleton_mod.resolve_by_telegram_chat(
+        db_sessionmaker, chat_id=1001
+    )
+    uid_b, cid_b, _, _ = await singleton_mod.resolve_by_telegram_chat(
+        db_sessionmaker, chat_id=1002
+    )
+    assert uid_a != uid_b
+    assert cid_a != cid_b
+
+
+@db_required
+@pytest.mark.asyncio
+async def test_telegram_chat_id_is_recorded_on_the_account(db_sessionmaker, _fake_genesis):
+    from sqlalchemy import select
+
+    from maya.companions import singleton as singleton_mod
+    from maya.db.models import User
+
+    uid, _, _, _ = await singleton_mod.resolve_by_telegram_chat(db_sessionmaker, chat_id=777)
+    async with db_sessionmaker() as s:
+        user = (
+            await s.execute(select(User).where(User.telegram_chat_id == 777))
+        ).scalar_one()
+    assert user.id == uid
+
+
+# ─────────────────────────── service: entitlement ───────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_over_quota_is_told_and_never_reaches_the_orchestrator(monkeypatch):
+    """The cap has to bite before the expensive part, and on this channel too —
+    one budget per account however they reach her."""
+    from maya.billing import entitlements
+
+    svc = _make_service()
+    uid, cid = uuid.uuid4(), uuid.uuid4()
+    monkeypatch.setattr(
+        service_mod, "resolve_by_telegram_chat", AsyncMock(return_value=(uid, cid, False, None))
+    )
+    monkeypatch.setattr(entitlements, "quota_exceeded", AsyncMock(return_value=True))
+
+    await svc.handle_update({"message": {"chat": {"id": 3}, "text": "hey"}})
+
+    svc.orchestrator.handle_message.assert_not_called()
+    svc.client.send_chat_action.assert_not_called()
+    assert "מכסת" in svc.client.send_message.await_args.args[1]

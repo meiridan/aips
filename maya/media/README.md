@@ -99,3 +99,89 @@ Ship tier 2 first — that is 2 styles x 5 ethnicities = 10 files:
 - `maya/media/avatars/anime/asian.webp`
 - `maya/media/avatars/anime/arab.webp`
 - `maya/media/avatars/anime/black.webp`
+
+## Presets (portrait 3:4, gallery 3:4)
+
+The nine ready-made companions on the opening gallery (`PRESETS` in
+`maya/companions/catalog.py`). `portrait.webp` is the grid tile and becomes
+the companion's avatar once she is created; `1`–`4` are the profile-screen
+carousel. Every one of these falls back to a gradient when missing, so the
+gallery is usable before the art lands.
+
+Optionally add `voice.mp3` (a few seconds, her `voice_line` read aloud) beside
+the images — e.g. `maya/media/presets/maya/voice.mp3`. The profile's voice-preview
+button plays the recording when the file exists and otherwise speaks
+`voice_line` with the browser's own Hebrew speech synthesis, so the button works
+before any audio is recorded.
+
+### maya — מאיה (מאיה — האסטרטגית היצירתית)
+
+- `maya/media/presets/maya/portrait.webp`
+- `maya/media/presets/maya/1.webp`
+- `maya/media/presets/maya/2.webp`
+- `maya/media/presets/maya/3.webp`
+- `maya/media/presets/maya/4.webp`
+
+### elena — אלנה (אלנה — ההרפתקנית)
+
+- `maya/media/presets/elena/portrait.webp`
+- `maya/media/presets/elena/1.webp`
+- `maya/media/presets/elena/2.webp`
+- `maya/media/presets/elena/3.webp`
+- `maya/media/presets/elena/4.webp`
+
+### yuki — יוקי (יוקי — הנשמה השקטה)
+
+- `maya/media/presets/yuki/portrait.webp`
+- `maya/media/presets/yuki/1.webp`
+- `maya/media/presets/yuki/2.webp`
+- `maya/media/presets/yuki/3.webp`
+- `maya/media/presets/yuki/4.webp`
+
+### amira — אמירה (אמירה — הרופאה שתמיד עונה)
+
+- `maya/media/presets/amira/portrait.webp`
+- `maya/media/presets/amira/1.webp`
+- `maya/media/presets/amira/2.webp`
+- `maya/media/presets/amira/3.webp`
+- `maya/media/presets/amira/4.webp`
+
+### zara — זארה (זארה — זו שמובילה)
+
+- `maya/media/presets/zara/portrait.webp`
+- `maya/media/presets/zara/1.webp`
+- `maya/media/presets/zara/2.webp`
+- `maya/media/presets/zara/3.webp`
+- `maya/media/presets/zara/4.webp`
+
+### noa — נועה (נועה — השכנה מלמעלה)
+
+- `maya/media/presets/noa/portrait.webp`
+- `maya/media/presets/noa/1.webp`
+- `maya/media/presets/noa/2.webp`
+- `maya/media/presets/noa/3.webp`
+- `maya/media/presets/noa/4.webp`
+
+### sofia — סופיה (סופיה — הרומנטיקה חשוכת המרפא)
+
+- `maya/media/presets/sofia/portrait.webp`
+- `maya/media/presets/sofia/1.webp`
+- `maya/media/presets/sofia/2.webp`
+- `maya/media/presets/sofia/3.webp`
+- `maya/media/presets/sofia/4.webp`
+
+### rin — רין (רין — הלהב החד)
+
+- `maya/media/presets/rin/portrait.webp`
+- `maya/media/presets/rin/1.webp`
+- `maya/media/presets/rin/2.webp`
+- `maya/media/presets/rin/3.webp`
+- `maya/media/presets/rin/4.webp`
+
+### lior — ליאור (ליאור — זו שמפתה)
+
+- `maya/media/presets/lior/portrait.webp`
+- `maya/media/presets/lior/1.webp`
+- `maya/media/presets/lior/2.webp`
+- `maya/media/presets/lior/3.webp`
+- `maya/media/presets/lior/4.webp`

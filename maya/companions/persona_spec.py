@@ -62,6 +62,11 @@ class PersonaSpec(BaseModel):
 
     extra_details: str | None = Field(default=None, max_length=MAX_EXTRA_DETAILS)
 
+    # Set when the spec came from a ready-made companion on the opening gallery
+    # rather than a wizard run. Carried through so `avatars.resolve_avatar` can
+    # serve that character's own portrait after a reload.
+    preset: str | None = None
+
     @field_validator("name")
     @classmethod
     def _strip_name(cls, v: str) -> str:
@@ -81,6 +86,8 @@ class PersonaSpec(BaseModel):
         for hobby in self.hobbies:
             if hobby not in valid_hobbies:
                 raise ValueError(f"unknown hobby: {hobby!r}")
+        if self.preset is not None and self.preset not in catalog.PRESET_IDS:
+            raise ValueError(f"unknown preset: {self.preset!r}")
         return self
 
     # ── derived values ────────────────────────────────────────────────────

@@ -57,11 +57,16 @@ async def get_state(sessionmaker: Any, companion_id: uuid.UUID) -> dict[str, Any
 
 
 async def _wipe_history(session: Any, companion_id: uuid.UUID) -> None:
-    """Drop every trace of the previous life so a reset is a real restart."""
+    """Drop every trace of the previous life so a reset is a real restart.
+
+    Order matters: the tables that point at `messages` go first, so the wipe
+    also works against a database that predates 0010 (which made that reference
+    ON DELETE SET NULL).
+    """
     for model in (
-        Message,
-        Memory,
         CompanionCommitment,
+        Memory,
+        Message,
         RelationshipEvent,
         RelationshipState,
         EmotionalState,
@@ -89,8 +94,8 @@ async def create_companion(
         if comp.onboarded_at is not None and not reset:
             raise AlreadyOnboarded(str(companion_id))
         # Creation always starts from zero. Besides an explicit reset this also
-        # clears the default opener a pre-wizard lazy `resolve_singleton` may
-        # have seeded before the user ever chose who she is.
+        # clears anything a lazily-created companion row may have accumulated
+        # before the user ever chose who she is.
         await _wipe_history(session, companion_id)
 
         comp.name = spec.name

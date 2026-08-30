@@ -14,6 +14,8 @@ set -euo pipefail
 #   --host H        bind address (default 127.0.0.1; use 0.0.0.0 to reach it from your phone)
 #   --skip-ui       don't rebuild the SPA (use the bundle already in maya/static/)
 #   --no-reload     don't auto-restart the server when Python files change
+#   --login         show the real login screen (default: no login, signed in as
+#                   dev@local.test)
 #   --reset-onboarding  send the app back to the creation wizard (keeps your data)
 #   --reset-db      DESTRUCTIVE: drop every table and re-migrate (keeps the container)
 #   --fresh         DESTRUCTIVE: also delete the Postgres volume — all data, permanently
@@ -35,6 +37,8 @@ RESET_DB=0
 RESET_ONBOARDING=0
 FRESH=0
 ASSUME_YES=0
+# Local runs skip the login screen by default; --login restores it.
+AUTOLOGIN=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -43,11 +47,12 @@ while [[ $# -gt 0 ]]; do
     --host)       HOST="${2:?--host needs a value}"; shift ;;
     --skip-ui)    SKIP_UI=1 ;;
     --no-reload)  NO_RELOAD=1 ;;
+    --login)      AUTOLOGIN=0 ;;
     --reset-onboarding) RESET_ONBOARDING=1 ;;
     --reset-db)   RESET_DB=1 ;;
     --fresh)      FRESH=1; RESET_DB=1 ;;
     --yes|-y)     ASSUME_YES=1 ;;
-    -h|--help)    sed -n '3,23p' "$0"; exit 0 ;;
+    -h|--help)    sed -n '3,25p' "$0"; exit 0 ;;
     *) echo "❌ Unknown option: $1 (try --help)"; exit 2 ;;
   esac
   shift
@@ -167,7 +172,14 @@ if [[ $CHECK -eq 0 ]]; then
   # The living prompt log: every prompt actually sent, plus the reply it drew.
   # Local-only by default — nothing sets this in production.
   export MAYA_PROMPT_LOG="${MAYA_PROMPT_LOG:-logs/prompts.log}"
+  # Skip the login screen locally and open on the creation wizard. Ignored by
+  # the server unless ENVIRONMENT=local; --check below never exports it, so the
+  # smoke test still asserts the real 401s.
+  export DEV_AUTOLOGIN="$AUTOLOGIN"
   echo "  Web UI     $BASE"
+  if [[ "$AUTOLOGIN" == "1" ]]; then
+    echo "  Auth       bypassed as dev@local.test (--login for the real screen)"
+  fi
   echo "  Debug view $BASE/?debug=1"
   echo "  API docs   $BASE/docs"
   echo "  Prompt log $MAYA_PROMPT_LOG  (uv run maya prompt-log -f)"
@@ -211,10 +223,55 @@ probe() { # name url jq-ish-grep
   echo "  ✓ $name"
 }
 
+status() { # name url expected-code
+  local name="$1" url="$2" want="$3" code
+  code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo 000)"
+  if [[ "$code" != "$want" ]]; then
+    echo "  ✗ $name → HTTP $code (expected $want)"; FAILED=1; return
+  fi
+  echo "  ✓ $name"
+}
+
+# Public surface: everything the login screen needs before anyone signs in.
 probe "GET /                     (SPA shell, RTL)" "$BASE/" 'dir="rtl"'
-probe "GET /api/catalog          (wizard options)" "$BASE/api/catalog" '"hair_color"'
-probe "GET /api/companion        (DB reachable)"   "$BASE/api/companion" '"onboarded"'
-probe "GET /companion/response_length"             "$BASE/companion/response_length" '"level"'
+probe "GET /login                (SPA client route)" "$BASE/login" 'dir="rtl"'
+probe "GET /api/catalog          (wizard + auth strings)" "$BASE/api/catalog" '"login_title"'
+probe "GET /api/subscription/plans (plan catalog)" "$BASE/api/subscription/plans" '"plus_monthly"'
+
+# Authenticated surface: these must REFUSE an anonymous caller. A 200 here would
+# mean the login gate is not wired up.
+status "GET /api/companion        (401 when signed out)" "$BASE/api/companion" 401
+status "GET /companion/response_length (401 when signed out)" "$BASE/companion/response_length" 401
+status "GET /api/subscription     (401 when signed out)" "$BASE/api/subscription" 401
+status "GET /api/nope             (404, not the SPA shell)" "$BASE/api/nope" 404
+
+# The database is reachable only if a signup round-trips. Uses a throwaway
+# address and deletes the account again, so repeat runs stay clean.
+SMOKE_EMAIL="smoke-$$@local.test"
+SIGNUP_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+  -X POST "$BASE/api/auth/signup" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"$SMOKE_EMAIL\",\"password\":\"smoke-test-password\"}" || echo 000)"
+if [[ "$SIGNUP_CODE" == "201" ]]; then
+  echo "  ✓ POST /api/auth/signup   (DB writable, session issued)"
+  uv run python - "$SMOKE_EMAIL" <<'PY' >/dev/null 2>&1 || true
+import asyncio, sys
+from sqlalchemy import delete
+from maya.db.models import User
+from maya.db.session import dispose_engine, get_sessionmaker
+
+async def main() -> None:
+    try:
+        async with get_sessionmaker()() as session:
+            await session.execute(delete(User).where(User.email_normalized == sys.argv[1].lower()))
+            await session.commit()
+    finally:
+        await dispose_engine()
+
+asyncio.run(main())
+PY
+else
+  echo "  ✗ POST /api/auth/signup   → HTTP $SIGNUP_CODE (expected 201)"; FAILED=1
+fi
 
 BUNDLE="$(curl -fsS --max-time 10 "$BASE/" 2>/dev/null | grep -o '/assets/[A-Za-z0-9._-]*\.js' | head -1 || true)"
 if [[ -n "$BUNDLE" ]]; then

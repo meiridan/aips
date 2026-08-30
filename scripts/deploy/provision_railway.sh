@@ -84,6 +84,31 @@ fi
 if [[ -n "${PUBLIC_BASE_URL:-}" ]]; then
   VAR_ARGS+=(--set "PUBLIC_BASE_URL=$PUBLIC_BASE_URL")
 fi
+# Google sign-in (optional). Without both, /auth/google/* answers 503 and the
+# email+password path still works. The redirect URI defaults to
+# {PUBLIC_BASE_URL}/auth/google/callback and must match the Google console.
+for var in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GOOGLE_REDIRECT_URI; do
+  if [[ -n "${!var:-}" ]]; then
+    VAR_ARGS+=(--set "$var=${!var}")
+  fi
+done
+# Password-reset email (optional). Unset logs the reset link instead of sending
+# it — fine for a staging box, not for real users.
+for var in RESEND_API_KEY MAIL_FROM PASSWORD_RESET_URL_BASE; do
+  if [[ -n "${!var:-}" ]]; then
+    VAR_ARGS+=(--set "$var=${!var}")
+  fi
+done
+# Billing (optional). Unset leaves the plans and status readable while checkout
+# answers 503. STRIPE_WEBHOOK_SECRET comes from the Stripe dashboard endpoint
+# pointing at {PUBLIC_BASE_URL}/billing/webhook.
+for var in STRIPE_SECRET_KEY STRIPE_WEBHOOK_SECRET \
+           STRIPE_PRICE_PLUS_MONTHLY STRIPE_PRICE_PLUS_YEARLY \
+           FREE_DAILY_MESSAGE_LIMIT; do
+  if [[ -n "${!var:-}" ]]; then
+    VAR_ARGS+=(--set "$var=${!var}")
+  fi
+done
 railway variables --service "$SERVICE_NAME" "${VAR_ARGS[@]}" < /dev/null
 
 # Ensure a public domain exists (idempotent — prints existing if already set).

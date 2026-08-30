@@ -1,9 +1,14 @@
-"""Single-companion resolution.
+"""Companion resolution, per account.
 
-The app is single-user by product decision: the web UI and the Telegram bot
-both talk to ONE shared Maya. This resolves (and lazily creates) that one
-(user, companion) pair so every channel converges on the same companion +
-memory. Ordering by created_at makes the choice deterministic across channels.
+This module used to resolve ONE shared Maya for the whole app (the oldest
+companion row), because Maya was single-user by product decision. Accounts
+changed that: the web channel resolves the signed-in user's companion, and
+Telegram resolves the companion belonging to the chat it is talking to.
+
+The two channels differ in one way that matters. The web UI has a creation
+wizard, so a new account's companion is an empty row until the wizard submits a
+spec and pays for genesis. Telegram has no wizard, so a first-time chat has to
+bring a default companion to life immediately or it would answer with nothing.
 """
 
 from __future__ import annotations
@@ -19,47 +24,85 @@ from maya.db.models import Companion, User
 from maya.db.session import get_sessionmaker
 
 
-async def resolve_singleton(
+async def resolve_for_user(
     sessionmaker: Any = None,
     *,
-    genesis: bool = True,
-) -> tuple[uuid.UUID, uuid.UUID, bool, str | None]:
-    """Return (user_id, companion_id, created, first_message).
+    user_id: uuid.UUID,
+) -> uuid.UUID:
+    """Return the companion id for an account, creating an empty one if needed.
 
-    Picks the oldest companion. If none exists yet, creates a user + companion
-    and runs genesis; `created` is True and `first_message` is Maya's opener.
-    The resolved (user_id, companion_id) is immutable per process, so it is
-    cached after the first lookup (single-user app).
+    Never runs genesis: on the web the creation wizard owns that, and paying
+    for a default birth here would spend an LLM call and seed an opener in the
+    wrong voice before the user has said who she is.
 
-    Pass `genesis=False` when the caller only needs the identity and a birth
-    would be wrong — the creation wizard and the boot warmup both resolve the
-    companion *before* the user has said who she is, and paying for a default
-    genesis there would spend an LLM call and seed an opener in the wrong voice.
+    The (user → companion) mapping is immutable once created, so it is cached.
     """
-    cached = runtime_cache.get_singleton()
+    cached = runtime_cache.get_companion_for_user(user_id)
     if cached is not None:
-        return cached[0], cached[1], False, None
+        return cached
 
     sm = sessionmaker or get_sessionmaker()
     async with sm() as session:
         comp = (
-            await session.execute(select(Companion).order_by(Companion.created_at.asc()).limit(1))
+            await session.execute(
+                select(Companion)
+                .where(Companion.user_id == user_id)
+                .order_by(Companion.created_at.asc())
+                .limit(1)
+            )
         ).scalar_one_or_none()
-        if comp is not None:
-            runtime_cache.set_singleton(comp.user_id, comp.id)
-            return comp.user_id, comp.id, False, None
+        if comp is None:
+            comp = Companion(user_id=user_id, name="Maya", template_id="flirt")
+            session.add(comp)
+            await session.commit()
+        companion_id = comp.id
 
-        user = User(name="Maya User")
-        session.add(user)
-        await session.flush()
-        comp = Companion(user_id=user.id, name="Maya", template_id="flirt")
-        session.add(comp)
-        await session.commit()
-        user_id, companion_id = user.id, comp.id
+    runtime_cache.set_companion_for_user(user_id, companion_id)
+    return companion_id
 
-    runtime_cache.set_singleton(user_id, companion_id)
-    if not genesis:
-        return user_id, companion_id, True, None
+
+async def resolve_by_telegram_chat(
+    sessionmaker: Any = None,
+    *,
+    chat_id: int,
+) -> tuple[uuid.UUID, uuid.UUID, bool, str | None]:
+    """Return (user_id, companion_id, created, first_message) for a Telegram chat.
+
+    `users.telegram_chat_id` is the account key for this channel. A chat that
+    has never been seen gets its own account and companion, and — because there
+    is no wizard on Telegram — genesis runs so she has a persona and an opener.
+    """
+    sm = sessionmaker or get_sessionmaker()
+
+    cached = runtime_cache.get_user_for_telegram_chat(chat_id)
+    if cached is not None:
+        return cached, await resolve_for_user(sm, user_id=cached), False, None
+
+    async with sm() as session:
+        user = (
+            await session.execute(select(User).where(User.telegram_chat_id == chat_id))
+        ).scalar_one_or_none()
+        if user is not None:
+            user_id = user.id
+        else:
+            user = User(name="Maya User", telegram_chat_id=chat_id)
+            session.add(user)
+            await session.commit()
+            user_id = user.id
+
+    runtime_cache.set_user_for_telegram_chat(chat_id, user_id)
+
+    known = await _has_companion(sm, user_id)
+    companion_id = await resolve_for_user(sm, user_id=user_id)
+    if known:
+        return user_id, companion_id, False, None
 
     result = await run_genesis(companion_id, sessionmaker=sm)
     return user_id, companion_id, True, result.first_message
+
+
+async def _has_companion(sessionmaker: Any, user_id: uuid.UUID) -> bool:
+    async with sessionmaker() as session:
+        return (
+            await session.execute(select(Companion.id).where(Companion.user_id == user_id).limit(1))
+        ).scalar_one_or_none() is not None

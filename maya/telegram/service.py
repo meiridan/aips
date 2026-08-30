@@ -1,16 +1,21 @@
 """Telegram → orchestrator bridge.
 
-Single-user app: every Telegram chat talks to the ONE shared Maya (same
-companion + memory as the web UI). The chat_id is used only to address replies,
-not to pick an identity. See maya.companions.singleton.
+The chat_id is the account key for this channel: it both addresses replies and
+picks the identity, via `users.telegram_chat_id`. Each chat therefore gets its
+own companion and its own memory — the same isolation the web channel gets from
+its session cookie.
+
+Telegram has no creation wizard, so a first-time chat runs genesis immediately
+rather than waiting for a spec. See maya.companions.singleton.
 """
 
 from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from maya.billing import entitlements
 from maya.companions.settings import set_response_length
-from maya.companions.singleton import resolve_singleton
+from maya.companions.singleton import resolve_by_telegram_chat
 from maya.config import get_settings
 from maya.conversation import response_length
 from maya.conversation.orchestrator import Orchestrator
@@ -45,8 +50,10 @@ class TelegramService:
         if chat_id is None or not isinstance(text, str) or not text.strip():
             return
 
-        # Single shared Maya — same companion as the web UI.
-        uid, cid, created, first_message = await resolve_singleton(self._sessionmaker)
+        # This chat's own Maya, created on first contact.
+        uid, cid, created, first_message = await resolve_by_telegram_chat(
+            self._sessionmaker, chat_id=int(chat_id)
+        )
 
         if created and first_message:
             await self.client.send_message(int(chat_id), first_message)
@@ -68,6 +75,15 @@ class TelegramService:
                 await self.client.send_message(
                     int(chat_id), f"Reply length set to {response_length.label(level)}."
                 )
+            return
+
+        # Same entitlement gate as the web channel — one budget per account,
+        # whichever way they reach her.
+        if await entitlements.quota_exceeded(self._sessionmaker, uid):
+            await self.client.send_message(
+                int(chat_id),
+                "הגעת למכסת ההודעות היומית. אפשר להמשיך מחר, או לשדרג למנוי.",
+            )
             return
 
         await self.client.send_chat_action(int(chat_id), "typing")

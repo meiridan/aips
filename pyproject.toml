@@ -24,6 +24,9 @@ dependencies = [
     "redis>=5.0",
     "truststore>=0.10.4",
     "tiktoken>=0.7",
+    # Billing. Used for its webhook signature verification above all — that is
+    # the one piece of this integration not to hand-roll.
+    "stripe>=11.0",
 ]
 
 [project.scripts]

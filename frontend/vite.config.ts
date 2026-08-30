@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -9,6 +10,14 @@ export default defineConfig({
   build: {
     outDir: "../maya/static",
     emptyOutDir: true,
+  },
+  // The auth screens are the first components with rendering tests, so the
+  // suite needs a DOM. The pure-logic tests (wizardReducer, validation) run
+  // fine under it too.
+  test: {
+    environment: "jsdom",
+    globals: false,
+    restoreMocks: true,
   },
   server: {
     proxy: {

@@ -12,15 +12,28 @@ export interface DebugEntry {
   at: string;
 }
 
+/** Application close code meaning "your session is gone". The server accepts
+ *  the socket and then closes with this, because a refused handshake reaches
+ *  the browser with no readable code. */
+export const WS_UNAUTHENTICATED = 4401;
+
 /** WebSocket client for the existing /ws protocol:
- *  message | history_end | message_start | message_chunk | message_end | debug. */
-export function useChatSocket() {
+ *  message | history_end | message_start | message_chunk | message_end | debug.
+ *
+ *  @param onUnauthenticated called when the server reports the session is gone.
+ */
+export function useChatSocket(onUnauthenticated?: () => void) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [debug, setDebug] = useState<DebugEntry[]>([]);
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Set when the server refuses a turn on the free plan's daily allowance.
+  const [quotaExceeded, setQuotaExceeded] = useState(false);
   const socket = useRef<WebSocket | null>(null);
   const streaming = useRef(false);
+  // Held in a ref so a new callback identity doesn't tear down the socket.
+  const onUnauthenticatedRef = useRef(onUnauthenticated);
+  onUnauthenticatedRef.current = onUnauthenticated;
 
   useEffect(() => {
     let closed = false;
@@ -35,9 +48,17 @@ export function useChatSocket() {
 
       ws.onopen = () => setConnected(true);
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         setConnected(false);
         setBusy(false);
+        // Without this the 2s retry becomes an infinite reconnect loop against
+        // a server that will keep rejecting us. Any other close code is a
+        // transient drop (restart, network) and should still retry.
+        if (event.code === WS_UNAUTHENTICATED) {
+          closed = true;
+          onUnauthenticatedRef.current?.();
+          return;
+        }
         if (!closed) retry = setTimeout(connect, 2000);
       };
 
@@ -66,6 +87,11 @@ export function useChatSocket() {
           case "message_end":
             streaming.current = false;
             setBusy(false);
+            break;
+          case "quota_exceeded":
+            // The server already declined the turn; this only explains why.
+            setBusy(false);
+            setQuotaExceeded(true);
             break;
           case "debug":
             setDebug((prev) => [
@@ -100,5 +126,5 @@ export function useChatSocket() {
     setBusy(true);
   }
 
-  return { messages, debug, connected, busy, send };
+  return { messages, debug, connected, busy, quotaExceeded, send };
 }

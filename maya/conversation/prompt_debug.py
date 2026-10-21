@@ -107,6 +107,7 @@ def _sources(
     moment: MomentAnalysis,
     hours_since: float,
     length_level: int,
+    group_length: bool = False,
 ) -> list[Source]:
     """One row per PHASE3_SYSTEM_TEMPLATE placeholder, naming its real origin.
 
@@ -181,10 +182,21 @@ def _sources(
             f"{len(commitments)} commitments",
         ),
         Source(
-            "max_words",
-            "companions.response_length → response_length.words_for",
-            f"{response_length.words_for(length_level)} "
-            f"(level {length_level} / {response_length.label(length_level)})",
+            "length_rule",
+            (
+                "conversations.settings['response_length'] → response_length.group_length_for"
+                if group_length
+                else "companions.response_length → response_length.words_for"
+            ),
+            (
+                response_length.group_length_for(length_level)
+                if group_length
+                else f"{response_length.words_for(length_level)} words"
+            )
+            + f" (level {length_level} / {response_length.label(length_level)})",
+            "the group room has its own setting, independent of the 1:1 chat"
+            if group_length
+            else "",
         ),
         Source(
             "language_directive",
@@ -278,6 +290,94 @@ async def build_dump(
             "moment_source": moment_desc,
             "memory_searched": with_memory,
             "recent_turns": len(recent),
+        },
+    )
+
+
+async def build_group_dump(
+    user_id: uuid.UUID,
+    message: str,
+    *,
+    speaker: str,
+    target: str | None = None,
+    with_memory: bool = True,
+    orchestrator: Orchestrator | None = None,
+) -> PromptDump:
+    """The group-room prompt `speaker` (a member slot) would get for `message`.
+
+    Read-only like `build_dump`: needs a room that already exists (opening the
+    group chat once creates it) and never creates one, since that runs genesis.
+    """
+    from maya.companions.singleton import load_room
+    from maya.conversation import rooms
+    from maya.conversation.group import GroupOrchestrator
+    from maya.conversation.group_settings import GroupSettings
+
+    orch = orchestrator or Orchestrator()
+    room_id = await rooms.group_conversation_id(orch._sessionmaker, user_id)
+    if room_id is None:
+        raise LookupError("no group room yet — open the group chat once to create it")
+    room = await load_room(orch._sessionmaker, room_id)
+    member = room.by_slot(speaker)
+    if member is None:
+        slots = ", ".join(m.slot for m in room.members)
+        raise LookupError(f"no member {speaker!r} in the group room (members: {slots})")
+
+    preview = await GroupOrchestrator(orch, director_enabled=False).preview_prompt(
+        room, member, message, target=target, search_memory=with_memory
+    )
+    companion = preview.companion
+    moment = default_moment()
+    length_level = GroupSettings.from_dict(room.settings).response_length
+    hours_since = orch._hours_since(getattr(preview.relationship, "last_interaction_at", None))
+    system = preview.prompt[0]["content"]
+    group_sources = [
+        Source(
+            "others / other_profiles",
+            "the other members' companions rows (personality description + backstory)",
+            ", ".join(m.name for m in room.members if m.slot != speaker),
+        ),
+        Source(
+            "room_dynamics",
+            "conversations.dynamics['description'] ← catalog.GROUP_PARTNERS[].dynamics",
+            _trunc(room.dynamics.get("description", "") or "(none)"),
+            "names are filled in at prompt time, so a renamed companion needs no migration",
+        ),
+        Source(
+            "turn_note",
+            "group._turn_note (addressing.resolve_addressees)",
+            _trunc(preview.turn_note),
+        ),
+    ]
+    return PromptDump(
+        system=system,
+        messages=preview.prompt,
+        sources=_sources(
+            companion=companion,
+            user_name=preview.user_name,
+            emotional=preview.emotional,
+            relationship=preview.relationship,
+            memories=preview.memories,
+            commitments=preview.commitments,
+            moment=moment,
+            hours_since=hours_since,
+            length_level=length_level,
+            group_length=True,
+        )
+        + group_sources,
+        tokens=count_tokens(system),
+        budget=TOKEN_BUDGET,
+        meta={
+            "companion_name": member.name,
+            "user_name": preview.user_name,
+            "locale": getattr(companion, "locale", None),
+            "template_id": getattr(companion, "template_id", None),
+            "moment_source": "default_moment() — what the live group call gets",
+            "memory_searched": with_memory,
+            "recent_turns": preview.recent_turns,
+            "speaker": speaker,
+            "addressed": preview.addressed,
+            "speaks": speaker in preview.addressed,
         },
     )
 

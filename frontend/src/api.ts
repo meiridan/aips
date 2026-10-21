@@ -1,4 +1,12 @@
-import type { Catalog, CompanionState, PersonaSpec, Plan, Subscription, User } from "./types";
+import type {
+  Catalog,
+  CompanionState,
+  GroupState,
+  PersonaSpec,
+  Plan,
+  Subscription,
+  User,
+} from "./types";
 
 /** Thrown for any non-OK response. `detail` is the server's error key (e.g.
  *  "invalid_credentials"), which the screens look up in `catalog.strings`. */
@@ -41,28 +49,36 @@ const postJson = (url: string, body: unknown) =>
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    credentials: "include",
   });
 
-export const fetchCatalog = () => fetch("/api/catalog").then(json<Catalog>);
+const fetchOpts = { credentials: "include" as const };
 
-export const fetchCompanion = () => fetch("/api/companion").then(json<CompanionState>);
+export const fetchCatalog = () => fetch("/api/catalog", fetchOpts).then(json<Catalog>);
+
+export const fetchCompanion = () => fetch("/api/companion", fetchOpts).then(json<CompanionState>);
 
 export function createCompanion(spec: PersonaSpec, reset = false) {
   return fetch("/api/companion", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...spec, reset }),
+    credentials: "include",
   }).then(json<{ ok: boolean; first_message: string | null }>);
 }
 
+/** The group room. The first call brings the partner to life, so it can take a few seconds. */
+export const fetchGroup = () => fetch("/api/group", fetchOpts).then(json<GroupState>);
+
 export const fetchResponseLength = () =>
-  fetch("/companion/response_length").then(json<{ level: number }>);
+  fetch("/companion/response_length", fetchOpts).then(json<{ level: number }>);
 
 export const setResponseLength = (level: number) =>
   fetch("/companion/response_length", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ level }),
+    credentials: "include",
   }).then(json<{ level: number }>);
 
 // ── auth ───────────────────────────────────────────────────────────────────
@@ -85,10 +101,10 @@ export const resetPassword = (token: string, password: string) =>
 
 // ── subscription ───────────────────────────────────────────────────────────
 
-export const fetchPlans = () => fetch("/api/subscription/plans").then(json<{ plans: Plan[] }>);
+export const fetchPlans = () => fetch("/api/subscription/plans", fetchOpts).then(json<{ plans: Plan[] }>);
 
 export const fetchSubscription = () =>
-  fetch("/api/subscription").then(json<Subscription>);
+  fetch("/api/subscription", fetchOpts).then(json<Subscription>);
 
 export const startCheckout = (planId: string) =>
   postJson("/api/subscription/checkout", { plan_id: planId }).then(json<{ url: string }>);

@@ -8,6 +8,7 @@ export const ROUTES = {
   forgot: "/forgot-password",
   reset: "/reset-password",
   subscription: "/subscription",
+  group: "/group",
 } as const;
 
 export type Route = (typeof ROUTES)[keyof typeof ROUTES];

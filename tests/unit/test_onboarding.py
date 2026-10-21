@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from maya.companions import onboarding
 from maya.companions.onboarding import AlreadyOnboarded, create_companion, get_state
 from maya.companions.persona_spec import PersonaSpec
+from maya.conversation.rooms import solo_conversation_id
 from maya.db.models import Companion, CompanionCommitment, Message
 from tests.conftest import db_required
 
@@ -103,7 +104,15 @@ async def test_creation_clears_prior_history(db_sessionmaker, seeded_ids, fake_g
     """A pre-wizard lazy companion may already hold an opener in the wrong voice."""
     uid, cid = seeded_ids
     async with db_sessionmaker() as session:
-        session.add(Message(companion_id=cid, user_id=uid, role="assistant", content="Hi there!"))
+        session.add(
+            Message(
+                conversation_id=await solo_conversation_id(db_sessionmaker, cid),
+                companion_id=cid,
+                user_id=uid,
+                role="assistant",
+                content="Hi there!",
+            )
+        )
         await session.commit()
     assert await _count(db_sessionmaker, Message, cid) == 1
 
@@ -128,7 +137,13 @@ async def test_reset_survives_a_commitment_pointing_at_a_message(
     wizard failed with a ForeignKeyViolationError."""
     uid, cid = seeded_ids
     async with db_sessionmaker() as session:
-        message = Message(companion_id=cid, user_id=uid, role="user", content="אזכיר לך מחר")
+        message = Message(
+            conversation_id=await solo_conversation_id(db_sessionmaker, cid),
+            companion_id=cid,
+            user_id=uid,
+            role="user",
+            content="אזכיר לך מחר",
+        )
         session.add(message)
         await session.flush()
         session.add(

@@ -83,6 +83,14 @@ function renderScreen(justReturned = false) {
 }
 
 describe("rendering", () => {
+  it("hides the logout button in single-user mode", async () => {
+    // No onLogout: the server reported auth.single_user, so there is no session
+    // to end and the button would lead to an unreachable login screen.
+    render(<SubscriptionScreen strings={strings} justReturnedFromCheckout={false} />);
+    await waitFor(() => expect(screen.getByText("פלוס")).toBeTruthy());
+    expect(screen.queryByText("[logout]")).toBeNull();
+  });
+
   it("shows a spinner until both requests land", () => {
     fetchPlans.mockReturnValue(new Promise(() => {}));
     renderScreen();

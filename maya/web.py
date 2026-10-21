@@ -18,27 +18,35 @@ from fastapi import (
 )
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import select, text
+from sqlalchemy import text
 
 from maya.api.auth import router as auth_router
 from maya.api.billing import router as billing_router
 from maya.api.google_auth import router as google_router
 from maya.auth import google
-from maya.auth.deps import current_user, dev_autologin_enabled, user_id_from_websocket
+from maya.auth.deps import (
+    current_user,
+    dev_autologin_enabled,
+    single_user_enabled,
+    user_id_from_websocket,
+)
 from maya.billing import entitlements
 from maya.companions import catalog
 from maya.companions.onboarding import AlreadyOnboarded, create_companion, get_state
 from maya.companions.persona_spec import PersonaSpec
 from maya.companions.settings import set_response_length
-from maya.companions.singleton import resolve_for_user
+from maya.companions.singleton import CompanionNotOnboarded, resolve_for_user, resolve_group
 from maya.config import get_settings
 from maya.conversation import response_length
+from maya.conversation.group import GroupOrchestrator
+from maya.conversation.group_settings import GroupSettings
 from maya.conversation.orchestrator import (
     MEMORY_LIMIT,
     RECENT_LIMIT,
     Orchestrator,
 )
-from maya.db.models import Companion, Message, User
+from maya.conversation.rooms import load_transcript, save_settings, solo_conversation_id
+from maya.db.models import Companion, User
 from maya.db.session import get_engine, get_sessionmaker
 from maya.logging import configure_logging, get_logger
 from maya.telegram.service import get_telegram_service
@@ -52,6 +60,10 @@ HISTORY_REPLAY_LIMIT = 200
 # Application close code for "your session is gone". Codes in 4000-4999 are
 # reserved for the application, and the browser can read them.
 WS_UNAUTHENTICATED = 4401
+# Group chat is switched off on this server (GROUP_CHAT_ENABLED=0).
+WS_GROUP_DISABLED = 4404
+# The account's own companion does not exist yet, so there is no room to join.
+WS_COMPANION_NOT_ONBOARDED = 4409
 
 # One shared orchestrator for all WebSocket connections. Building it runs Mem0's
 # slow sync init (opens its own Neon connection); doing it per-connect blocked
@@ -64,6 +76,17 @@ def get_orchestrator() -> Orchestrator:
     if _orchestrator is None:
         _orchestrator = Orchestrator()
     return _orchestrator
+
+
+_group_orchestrator: GroupOrchestrator | None = None
+
+
+def get_group_orchestrator() -> GroupOrchestrator:
+    """Wraps the shared orchestrator: same services, same Mem0 client."""
+    global _group_orchestrator
+    if _group_orchestrator is None:
+        _group_orchestrator = GroupOrchestrator(get_orchestrator())
+    return _group_orchestrator
 
 
 # Re-exported so callers/tests can confirm the web path uses the shared
@@ -167,7 +190,13 @@ async def get_catalog() -> dict:
     """
     return {
         **catalog.as_dict(),
-        "auth": {"google": google.is_configured(), "dev_login": dev_autologin_enabled()},
+        "auth": {
+            "google": google.is_configured(),
+            "dev_login": dev_autologin_enabled(),
+            # On: the SPA never shows a login screen and hides the logout button.
+            "single_user": single_user_enabled(),
+        },
+        "features": {"group_chat": get_settings().group_chat_enabled},
     }
 
 
@@ -200,6 +229,23 @@ async def post_companion(
             status_code=409, detail="companion already created; pass reset=true"
         ) from None
     return {"ok": True, "first_message": first_message}
+
+
+@app.get("/api/group")
+async def get_group(user: User = Depends(current_user)) -> dict:
+    """The group room and its members. First call brings the partner to life
+    (one genesis LLM call), so the SPA shows a joining state while it waits."""
+    if not get_settings().group_chat_enabled:
+        raise HTTPException(status_code=404, detail="group_chat_disabled")
+    try:
+        room = await resolve_group(get_sessionmaker(), user_id=user.id)
+    except CompanionNotOnboarded:
+        raise HTTPException(status_code=409, detail="companion_not_onboarded") from None
+    return {
+        "conversation_id": str(room.conversation_id),
+        "members": [m.as_dict() for m in room.members],
+        "settings": GroupSettings.from_dict(room.settings).as_dict(),
+    }
 
 
 @app.post("/telegram/webhook")
@@ -273,15 +319,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
     # Replay recent message history in chronological order (capped — see
     # HISTORY_REPLAY_LIMIT). Fetch newest-first with a LIMIT, then reverse.
-    async with sm() as session:
-        stmt = (
-            select(Message)
-            .where(Message.companion_id == companion_id)
-            .order_by(Message.created_at.desc())
-            .limit(HISTORY_REPLAY_LIMIT)
-        )
-        history = list((await session.scalars(stmt)).all())
-        history.reverse()
+    conversation_id = await solo_conversation_id(sm, companion_id)
+    history = await load_transcript(sm, conversation_id, HISTORY_REPLAY_LIMIT)
 
     for msg in history:
         await websocket.send_json(
@@ -348,6 +387,129 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         await send_debug(websocket, "system", "Client disconnected", {})
+
+
+@app.websocket("/ws/group")
+async def group_websocket_endpoint(websocket: WebSocket):
+    """Group chat socket. Same auth handshake and quota gate as /ws.
+
+    Unlike /ws, reading and answering run as two tasks: a message that arrives
+    while the companions are still talking interrupts the room (nobody new
+    starts speaking) instead of waiting unread in the socket buffer.
+
+    Protocol, server → client: members · settings {response_length, talk_mode} ·
+    message {role, speaker?, content} · history_end · turn_start {addressed} ·
+    message_start {speaker} · message_chunk {speaker, content} ·
+    message_end {speaker} · turn_end · quota_exceeded · debug.
+    Client → server: {content, target?: "all" | slot} to talk, or
+    {type: "settings", response_length?, talk_mode?} to change the room's
+    controls — saved, echoed back, and seen by a turn already running.
+    """
+    await websocket.accept()
+
+    user_id = await user_id_from_websocket(websocket)
+    if user_id is None:
+        await websocket.close(code=WS_UNAUTHENTICATED)
+        return
+    if not get_settings().group_chat_enabled:
+        await websocket.close(code=WS_GROUP_DISABLED)
+        return
+
+    sm = get_sessionmaker()
+    try:
+        room = await resolve_group(sm, user_id=user_id)
+    except CompanionNotOnboarded:
+        await websocket.close(code=WS_COMPANION_NOT_ONBOARDED)
+        return
+
+    async def send(payload: dict) -> None:
+        try:
+            await websocket.send_json(payload)
+        except Exception:  # noqa: BLE001 - the client may already be gone
+            pass
+
+    await send({"type": "members", "members": [m.as_dict() for m in room.members]})
+    # One live object for this socket: the running turn reads the same instance.
+    live = GroupSettings.from_dict(room.settings)
+    await send({"type": "settings", **live.as_dict()})
+    for msg in await load_transcript(sm, room.conversation_id, HISTORY_REPLAY_LIMIT):
+        member = room.member(msg.companion_id) if msg.role == "assistant" else None
+        await send(
+            {
+                "type": "message",
+                "role": msg.role,
+                "speaker": member.slot if member else None,
+                "content": msg.content,
+            }
+        )
+    await send({"type": "history_end"})
+
+    orch = get_group_orchestrator()
+    inbox: asyncio.Queue[dict | None] = asyncio.Queue()
+    running: dict[str, asyncio.Event | None] = {"cancel": None}
+
+    async def on_step(category: str, label: str, data: dict) -> None:
+        await send_debug(websocket, category, label, data)
+
+    async def read() -> None:
+        try:
+            while True:
+                try:
+                    data = json.loads(await websocket.receive_text())
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(data, dict):
+                    continue
+                if data.get("type") == "settings":
+                    # Not a message: no cancel, nothing queued.
+                    if live.apply(data):
+                        try:
+                            await save_settings(sm, room.conversation_id, live.as_dict())
+                        except Exception as e:  # noqa: BLE001 - the live value still applies
+                            log.warning("group_settings_save_failed", error=str(e))
+                    await send({"type": "settings", **live.as_dict()})
+                    continue
+                content = str(data.get("content", "")).strip()
+                if not content:
+                    continue
+                target = data.get("target")
+                if running["cancel"] is not None:
+                    running["cancel"].set()
+                await inbox.put(
+                    {"content": content, "target": target if isinstance(target, str) else None}
+                )
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        finally:
+            if running["cancel"] is not None:
+                running["cancel"].set()
+            await inbox.put(None)
+
+    async def answer() -> None:
+        while (item := await inbox.get()) is not None:
+            if await entitlements.quota_exceeded(sm, user_id):
+                await send({"type": "quota_exceeded"})
+                continue
+            cancel = asyncio.Event()
+            running["cancel"] = cancel
+            await send({"type": "message", "role": "user", "content": item["content"]})
+            try:
+                await orch.run_turn(
+                    room,
+                    item["content"],
+                    target=item["target"],
+                    emit=send,
+                    cancel=cancel,
+                    settings=live,
+                    on_step=on_step,
+                )
+            except Exception as e:  # noqa: BLE001 - keep the socket alive
+                await send_debug(websocket, "error", f"❌ {type(e).__name__}: {e}", {})
+                await send({"type": "turn_end"})
+            finally:
+                running["cancel"] = None
+
+    await asyncio.gather(read(), answer())
 
 
 async def send_debug(websocket: WebSocket, category: str, label: str, data: dict):

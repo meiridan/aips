@@ -8,7 +8,8 @@ interface Props {
   strings: Record<string, string>;
   /** ?checkout=success — the webhook may land a moment after the redirect. */
   justReturnedFromCheckout: boolean;
-  onLogout: () => void;
+  /** Omitted in single-user mode: nothing to log out of, so no button. */
+  onLogout?: () => void;
 }
 
 const FREE_PLAN_ID = "free";
@@ -117,9 +118,11 @@ export default function SubscriptionScreen({
           <span className="chev">›</span>
           {s.continue_to_chat}
         </button>
-        <button type="button" className="header-link" onClick={onLogout}>
-          {s.logout}
-        </button>
+        {onLogout && (
+          <button type="button" className="header-link" onClick={onLogout}>
+            {s.logout}
+          </button>
+        )}
       </header>
 
       <h1 className="billing-title">{s.subscription_title}</h1>

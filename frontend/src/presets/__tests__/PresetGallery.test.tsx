@@ -150,6 +150,13 @@ describe("PresetGallery", () => {
     expect(onLogout).toHaveBeenCalled();
   });
 
+  it("drops the avatar menu entirely in single-user mode", () => {
+    // No onLogout means no login flow, so the menu would open on nothing.
+    render(<PresetGallery catalog={catalog} user={USER} onOpen={() => {}} onCustom={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Dev" })).toBeNull();
+    expect(screen.queryByText("[logout]")).toBeNull();
+  });
+
   it("shows the account initial on the avatar", () => {
     render(
       <PresetGallery catalog={catalog} user={USER} onOpen={() => {}} onCustom={() => {}} onLogout={() => {}} />,

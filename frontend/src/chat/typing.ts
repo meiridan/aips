@@ -18,3 +18,11 @@ export function isAwaitingReply(messages: ChatMessage[], busy: boolean): boolean
 export function isPlaceholder(message: ChatMessage): boolean {
   return message.role === "assistant" && message.content === "";
 }
+
+/** Who the typing indicator stands for in a group room: the speaker of the
+ *  streaming placeholder, or null while nobody has started yet. */
+export function typingSpeaker(messages: ChatMessage[]): string | null {
+  const last = messages[messages.length - 1];
+  if (!last || !isPlaceholder(last)) return null;
+  return last.speaker ?? null;
+}

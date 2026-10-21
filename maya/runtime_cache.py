@@ -36,6 +36,9 @@ _companions: dict[uuid.UUID, Any] = {}
 # User display name keyed by user_id.
 _user_names: dict[uuid.UUID, str] = {}
 
+# companion_id -> her solo conversation id. Immutable once created.
+_solo_conversations: dict[uuid.UUID, uuid.UUID] = {}
+
 
 def get_companion_for_user(user_id: uuid.UUID) -> uuid.UUID | None:
     return _companion_by_user.get(user_id)
@@ -73,9 +76,18 @@ def set_user_name(user_id: uuid.UUID, name: str) -> None:
     _user_names[user_id] = name
 
 
+def get_solo_conversation(companion_id: uuid.UUID) -> uuid.UUID | None:
+    return _solo_conversations.get(companion_id)
+
+
+def set_solo_conversation(companion_id: uuid.UUID, conversation_id: uuid.UUID) -> None:
+    _solo_conversations[companion_id] = conversation_id
+
+
 def clear() -> None:
     """Drop every cached value. For tests and manual invalidation."""
     _companion_by_user.clear()
     _user_by_telegram_chat.clear()
     _companions.clear()
     _user_names.clear()
+    _solo_conversations.clear()

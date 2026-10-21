@@ -259,3 +259,31 @@ def test_bare_media_directory_still_resolves_to_none(tmp_path, monkeypatch):
     monkeypatch.setattr(avatars, "PRESET_DIR", tmp_path / "presets")
     monkeypatch.setattr(avatars, "AVATAR_DIR", tmp_path / "avatars")
     assert avatars.resolve_avatar(_spec(preset="maya")) is None
+
+
+# ──────────────────────────── group-chat partners ───────────────────────────
+
+
+def test_every_group_partner_spec_is_a_valid_persona_spec():
+    """A partner is created from her spec on first open of the group chat — a
+    typo would 500 there, so it fails here instead."""
+    for partner in catalog.GROUP_PARTNERS:
+        spec = PersonaSpec(name=partner.name, preset=partner.id, **partner.spec)
+        assert partner.name in to_persona_description(spec)
+
+
+def test_group_partners_are_not_in_the_gallery():
+    """She is the friend already in the room, not someone picked to talk to alone."""
+    gallery = {p.id for p in catalog.PRESETS}
+    assert not gallery & {p.id for p in catalog.GROUP_PARTNERS}
+    assert catalog.group_partner(catalog.DEFAULT_GROUP_PARTNER) is not None
+
+
+def test_group_partner_text_uses_only_the_known_name_tokens():
+    import re
+
+    for partner in catalog.GROUP_PARTNERS:
+        for text in (partner.dynamics, partner.genesis_context):
+            assert set(re.findall(r"\{(\w+)\}", text)) <= {"primary", "partner", "user"}
+            filled = catalog.fill_names(text, primary="מאיה", partner=partner.name, user="עידן")
+            assert "{" not in filled

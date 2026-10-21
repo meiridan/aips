@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from maya.companions.commitments import CommitmentService
 from maya.companions.persona_spec import PersonaSpec, personality_blob
 from maya.companions.templates import get_template
+from maya.conversation.rooms import solo_conversation_id
 from maya.db.models import Companion, Message, User
 from maya.db.session import get_sessionmaker
 from maya.emotional.service import EmotionalService
@@ -60,6 +61,12 @@ CONSTRAINTS:
 - The first message must NOT feel like a system greeting.
 {language_note}"""
 
+# Appended when she joins a group chat, so her backstory already knows the room.
+GROUP_BLOCK = """
+WHERE YOU ARE MEETING HIM (settled — build around it):
+{group_context}
+"""
+
 # Appended when the companion was built by the creation wizard.
 PERSONA_BLOCK = """
 WHO YOUR CREATOR MADE YOU TO BE (this is settled — build the backstory around it,
@@ -88,6 +95,7 @@ async def generate_genesis(
     llm: LLMService | None = None,
     *,
     spec: PersonaSpec | None = None,
+    group_context: str | None = None,
 ) -> GenesisResult:
     """One-shot LLM call (main tier — personality matters) → GenesisResult.
 
@@ -102,6 +110,8 @@ async def generate_genesis(
         from maya.companions.persona_spec import to_persona_description
 
         persona_block = PERSONA_BLOCK.format(persona_description=to_persona_description(spec))
+    if group_context:
+        persona_block += GROUP_BLOCK.format(group_context=group_context)
     locale = getattr(companion, "locale", "en") or "en"
     prompt = GENESIS_PROMPT.format(
         companion_name=companion.name,
@@ -128,11 +138,18 @@ async def run_genesis(
     sessionmaker: Any = None,
     llm: LLMService | None = None,
     spec: PersonaSpec | None = None,
+    conversation_id: uuid.UUID | None = None,
+    group_context: str | None = None,
 ) -> GenesisResult:
     """Apply genesis to a freshly-created companion. Idempotent-ish: overwrites
-    backstory/feelings, appends seed commitments + first message."""
+    backstory/feelings, appends seed commitments + first message.
+
+    The opener lands in `conversation_id` — her solo chat unless a group room is
+    given, which is how a group partner's hello shows up in the group chat."""
     sm = sessionmaker or get_sessionmaker()
     llm = llm or LLMService()
+    if conversation_id is None:
+        conversation_id = await solo_conversation_id(sm, companion_id)
 
     async with sm() as session:
         companion = await session.get(Companion, companion_id)
@@ -143,7 +160,9 @@ async def run_genesis(
             raise ValueError(f"User {companion.user_id} not found")
         # Detach plain copies for the LLM call (avoid holding the session open).
         comp_name, comp_template, user_obj = companion.name, companion.template_id, user
-        genesis = await generate_genesis(companion, user_obj, llm, spec=spec)
+        genesis = await generate_genesis(
+            companion, user_obj, llm, spec=spec, group_context=group_context
+        )
 
         # 1. Persist backstory + personality blob.
         template = get_template(comp_template)
@@ -162,6 +181,7 @@ async def run_genesis(
         # 6. Save first message as the opening assistant message.
         session.add(
             Message(
+                conversation_id=conversation_id,
                 companion_id=companion_id,
                 user_id=user_obj.id,
                 role="assistant",

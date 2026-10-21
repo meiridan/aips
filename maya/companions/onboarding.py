@@ -20,6 +20,7 @@ from maya.companions.avatars import resolve_avatar
 from maya.companions.genesis import run_genesis
 from maya.companions.persona_spec import PersonaSpec
 from maya.conversation import response_length
+from maya.conversation.rooms import wipe_group_rooms
 from maya.db.models import (
     Companion,
     CompanionCommitment,
@@ -62,7 +63,11 @@ async def _wipe_history(session: Any, companion_id: uuid.UUID) -> None:
     Order matters: the tables that point at `messages` go first, so the wipe
     also works against a database that predates 0010 (which made that reference
     ON DELETE SET NULL).
+
+    Every group room she is in is cleared too: the partner answering lines
+    nobody remembers saying is worse than starting that room over.
     """
+    await wipe_group_rooms(session, companion_id)
     for model in (
         CompanionCommitment,
         Memory,

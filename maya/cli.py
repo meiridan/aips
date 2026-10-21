@@ -256,6 +256,15 @@ def show_prompt(
     with_memory: bool = typer.Option(
         True, "--memory/--no-memory", help="Run the real memory search (costs an embedding)."
     ),
+    group: bool = typer.Option(
+        False, "--group", help="Assemble the group-chat prompt instead of the 1:1 one."
+    ),
+    speaker: str = typer.Option(
+        "primary", "--speaker", help="With --group: whose prompt (member slot, e.g. lila)."
+    ),
+    target: str = typer.Option(
+        None, "--target", help="With --group: explicit target ('all' or a slot), like the UI chips."
+    ),
     raw: bool = typer.Option(False, "--raw", help="Print only the system prompt."),
     as_json: bool = typer.Option(False, "--json", help="Dump the whole thing as JSON."),
     companion_id: str = typer.Option(None, "--companion-id"),
@@ -267,12 +276,16 @@ def show_prompt(
     its instructions the cause is usually two of them disagreeing, which no
     single file shows. Read-only — saves no message, advances no state.
     """
-    cid = _resolve(companion_id, "MAYA_COMPANION_ID")
     uid = _resolve(user_id, "MAYA_USER_ID")
 
     async def _run():
-        from maya.conversation.prompt_debug import build_dump
+        from maya.conversation.prompt_debug import build_dump, build_group_dump
 
+        if group:
+            return await build_group_dump(
+                uid, message, speaker=speaker, target=target, with_memory=with_memory
+            )
+        cid = _resolve(companion_id, "MAYA_COMPANION_ID")
         return await build_dump(
             uid,
             cid,
@@ -309,6 +322,11 @@ def show_prompt(
         f"locale: {meta['locale'] or '(none)'} | recent turns: {meta['recent_turns']}"
     )
     typer.echo(f"moment: {meta['moment_source']}")
+    if "addressed" in meta:
+        note = "" if meta["speaks"] else "  (not addressed — she would only speak via the director)"
+        typer.echo(
+            f"group: speaker {meta['speaker']} | addressed: {', '.join(meta['addressed'])}{note}"
+        )
     if not meta["memory_searched"]:
         typer.secho("memory: SKIPPED (--no-memory) — memory block is empty", fg="yellow")
     over = dump.over_budget
@@ -349,11 +367,14 @@ def history(
     cid = _resolve(companion_id, "MAYA_COMPANION_ID")
 
     async def _run() -> list[Message]:
+        from maya.conversation.rooms import solo_conversation_id
+
         sm = get_sessionmaker()
+        conversation_id = await solo_conversation_id(sm, cid)
         async with sm() as session:
             stmt = (
                 select(Message)
-                .where(Message.companion_id == cid)
+                .where(Message.conversation_id == conversation_id)
                 .order_by(Message.created_at.desc())
                 .limit(limit)
             )
@@ -382,9 +403,14 @@ def reset(
     async def _run() -> tuple[int, int]:
         deleted_msgs = 0
         if not memory_only:
+            from maya.conversation.rooms import solo_conversation_id
+
             sm = get_sessionmaker()
+            conversation_id = await solo_conversation_id(sm, cid)
             async with sm() as session:
-                result = await session.execute(delete(Message).where(Message.companion_id == cid))
+                result = await session.execute(
+                    delete(Message).where(Message.conversation_id == conversation_id)
+                )
                 await session.commit()
                 deleted_msgs = cast(CursorResult[Any], result).rowcount or 0
 
@@ -747,8 +773,7 @@ def prompt_log_cmd(
     if not path.exists():
         if not follow:
             typer.echo(
-                f"{path} does not exist yet — send a message first, "
-                f"or use --follow to wait for it."
+                f"{path} does not exist yet — send a message first, or use --follow to wait for it."
             )
             raise typer.Exit(1)
         typer.echo(f"── waiting for {path} (ctrl-c to stop) ──")

@@ -879,11 +879,86 @@ PRESETS: list[Preset] = [
     ),
 ]
 
-PRESET_IDS: set[str] = {p.id for p in PRESETS}
+
+# ──────────────────────────── group-chat partners ────────────────────────────
+# Companions who join the account's own companion in the group chat. Not in the
+# gallery: she is not someone you pick to talk to alone, she is the friend who
+# is already there. `dynamics` and `genesis_context` are English prompt text;
+# {primary}, {partner} and {user} are filled with real names at use time.
+
+
+class GroupPartner(Preset):
+    #: How she and the account's companion relate — read by both of their prompts.
+    dynamics: str
+    #: Extra brief for her genesis call, so her backstory already knows her friend.
+    genesis_context: str
+
+
+GROUP_PARTNERS: list[GroupPartner] = [
+    GroupPartner(
+        id="lila",
+        name="לילה",
+        tagline="החברה הכי טובה",
+        voice_line="היי, אני לילה. שמעתי עליך כל כך הרבה, הגיע הזמן שנכיר.",
+        bio=(
+            "לילה רקדנית, רועשת ומצחיקה, והחברה הכי טובה שלה כבר שנים. "
+            "היא לא מחכה לתורה בשיחה, מתגרה בכולם, ותמיד יודעת בדיוק "
+            "מתי להוסיף עוד שמן למדורה."
+        ),
+        spec={
+            "age": 25,
+            "style": "realistic",
+            "ethnicity": "caucasian",
+            "hair_style": "long",
+            "hair_color": "blonde",
+            "eye_color": "blue",
+            "body_type": "curvy",
+            "breast_size": "medium",
+            "butt_size": "large",
+            "personality": "playful",
+            "relationship": "friend",
+            "occupation": "dancer",
+            "clothing": "dress",
+            "voice_style": "playful",
+            "hobbies": ["dancing", "music", "travel"],
+        },
+        dynamics=(
+            "{partner} and {primary} are best friends who have known each other for years. "
+            "They finish each other's sentences, tease each other constantly and compete a "
+            "little for {user}'s attention — a game both of them enjoy, never real jealousy. "
+            "They are openly affectionate and physically at ease with each other."
+        ),
+        genesis_context=(
+            "You are joining a group chat with {user} and your best friend {primary}, whom "
+            "you have known for years. Your backstory must say how you met {primary} and "
+            "what you love and tease her about. Your first message is to {user}, in front of "
+            "{primary}: you have heard a lot about him from her."
+        ),
+    ),
+]
+
+
+PRESET_IDS: set[str] = {p.id for p in [*PRESETS, *GROUP_PARTNERS]}
 
 
 def preset(preset_id: str) -> Preset | None:
     return next((p for p in PRESETS if p.id == preset_id), None)
+
+
+def group_partner(partner_id: str) -> GroupPartner | None:
+    return next((p for p in GROUP_PARTNERS if p.id == partner_id), None)
+
+
+#: The partner the group chat opens with. One today; the room model takes more.
+DEFAULT_GROUP_PARTNER = "lila"
+
+
+def fill_names(template: str, *, primary: str, partner: str, user: str) -> str:
+    """Substitute the name tokens without `str.format`, so a stray brace in a
+    companion's name can never raise."""
+    return (
+        template.replace("{primary}", primary).replace("{partner}", partner).replace("{user}", user)
+    )
 
 
 # UI strings the SPA needs but that aren't option labels. Keeping them server-side
@@ -1018,6 +1093,19 @@ UI_STRINGS: dict[str, str] = {
     "preset_voice": "שמעו אותה",
     "preset_voice_stop": "עצירה",
     "preset_voice_unavailable": "הדגמת הקול אינה נתמכת בדפדפן הזה.",
+    # ── group chat ──────────────────────────────────────────────────────────
+    "group_open": "צ'אט משותף",
+    "group_back": "חזרה",
+    "group_and": "ו",
+    "group_target": "למי:",
+    "group_target_all": "לשתיהן",
+    "group_typing_many": "מקלידות…",
+    "group_joining": "מצטרפת לשיחה…",
+    "group_error": "לא הצלחנו לפתוח את הצ'אט המשותף. נסו שוב.",
+    "group_hint": "פתחו הודעה בשם שלה כדי לדבר רק איתה",
+    # The talk-mode toggle shows the mode the room is in now.
+    "group_talk_free": "שיחה חופשית",
+    "group_talk_moderated": "שיחה מנוהלת",
 }
 
 

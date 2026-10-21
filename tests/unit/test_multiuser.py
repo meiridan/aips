@@ -81,23 +81,34 @@ async def test_messages_do_not_leak_between_accounts(db_sessionmaker):
     companion_a = await resolve_for_user(db_sessionmaker, user_id=a)
     companion_b = await resolve_for_user(db_sessionmaker, user_id=b)
 
+    from maya.conversation.rooms import load_transcript, solo_conversation_id
+
+    room_a = await solo_conversation_id(db_sessionmaker, companion_a)
+    room_b = await solo_conversation_id(db_sessionmaker, companion_b)
+    assert room_a != room_b
     async with db_sessionmaker() as session:
         session.add(
-            Message(companion_id=companion_a, user_id=a, role="user", content="ada's secret")
+            Message(
+                conversation_id=room_a,
+                companion_id=companion_a,
+                user_id=a,
+                role="user",
+                content="ada's secret",
+            )
         )
         session.add(
-            Message(companion_id=companion_b, user_id=b, role="user", content="grace's secret")
+            Message(
+                conversation_id=room_b,
+                companion_id=companion_b,
+                user_id=b,
+                role="user",
+                content="grace's secret",
+            )
         )
         await session.commit()
 
-    # The /ws history replay filters on companion_id; that must be enough.
-    async with db_sessionmaker() as session:
-        a_history = [
-            m.content
-            for m in (
-                await session.scalars(select(Message).where(Message.companion_id == companion_a))
-            ).all()
-        ]
+    # The /ws history replay reads the solo room; that must be enough.
+    a_history = [m.content for m in await load_transcript(db_sessionmaker, room_a, 50)]
     assert a_history == ["ada's secret"]
 
 

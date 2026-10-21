@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import TypingIndicator from "../TypingIndicator";
-import { isAwaitingReply, isPlaceholder } from "../typing";
+import { isAwaitingReply, isPlaceholder, typingSpeaker } from "../typing";
 import type { ChatMessage } from "../useChatSocket";
 
 const user = (content: string): ChatMessage => ({ role: "user", content });
@@ -50,5 +50,19 @@ describe("TypingIndicator", () => {
     // Right-hand side with the user's turns: .bubble.typing, not .assistant.
     expect(status.className).toBe("bubble typing");
     expect(container.querySelectorAll(".typing-dot")).toHaveLength(3);
+  });
+});
+
+describe("typingSpeaker", () => {
+  const lila = (content: string): ChatMessage => ({ role: "assistant", content, speaker: "lila" });
+
+  it("names whoever owns the streaming placeholder", () => {
+    expect(typingSpeaker([user("היי"), lila("")])).toBe("lila");
+  });
+
+  it("is nobody before a speaker starts or once text arrives", () => {
+    expect(typingSpeaker([user("היי")])).toBeNull();
+    expect(typingSpeaker([user("היי"), lila("אה")])).toBeNull();
+    expect(typingSpeaker([])).toBeNull();
   });
 });

@@ -14,9 +14,11 @@ set -euo pipefail
 #   --host H        bind address (default 127.0.0.1; use 0.0.0.0 to reach it from your phone)
 #   --skip-ui       don't rebuild the SPA (use the bundle already in maya/static/)
 #   --no-reload     don't auto-restart the server when Python files change
-#   --login         show the real login screen (default: no login, signed in as
-#                   dev@local.test)
+#   --login         show the real login screen (default: no login at all, every
+#                   request served as the single hardcoded user)
 #   --reset-onboarding  send the app back to the creation wizard (keeps your data)
+#   --reset-login   delete login details: revoke sessions, blank passwords/Google
+#                   links (keeps companions, messages, memories). Implies --login.
 #   --reset-db      DESTRUCTIVE: drop every table and re-migrate (keeps the container)
 #   --fresh         DESTRUCTIVE: also delete the Postgres volume — all data, permanently
 #   --yes           skip the confirmation prompt for the destructive flags
@@ -35,10 +37,13 @@ SKIP_UI=0
 NO_RELOAD=0
 RESET_DB=0
 RESET_ONBOARDING=0
+RESET_LOGIN=0
 FRESH=0
 ASSUME_YES=0
-# Local runs skip the login screen by default; --login restores it.
+# Local runs skip the login screen by default; --login restores it. SINGLE_USER
+# is the app's own default too — exported here so --login can switch it off.
 AUTOLOGIN=1
+SINGLE_USER=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -47,12 +52,15 @@ while [[ $# -gt 0 ]]; do
     --host)       HOST="${2:?--host needs a value}"; shift ;;
     --skip-ui)    SKIP_UI=1 ;;
     --no-reload)  NO_RELOAD=1 ;;
-    --login)      AUTOLOGIN=0 ;;
+    --login)      AUTOLOGIN=0; SINGLE_USER=0 ;;
     --reset-onboarding) RESET_ONBOARDING=1 ;;
+    # Autologin / single-user mode would serve a fixed account, hiding the login
+    # screen you just cleared the credentials to see.
+    --reset-login) RESET_LOGIN=1; AUTOLOGIN=0; SINGLE_USER=0 ;;
     --reset-db)   RESET_DB=1 ;;
     --fresh)      FRESH=1; RESET_DB=1 ;;
     --yes|-y)     ASSUME_YES=1 ;;
-    -h|--help)    sed -n '3,25p' "$0"; exit 0 ;;
+    -h|--help)    sed -n '3,27p' "$0"; exit 0 ;;
     *) echo "❌ Unknown option: $1 (try --help)"; exit 2 ;;
   esac
   shift
@@ -148,6 +156,13 @@ if [[ $RESET_ONBOARDING -eq 1 ]]; then
   uv run python scripts/dev/reset_onboarding.py | sed 's/^/  /'
 fi
 
+if [[ $RESET_LOGIN -eq 1 ]]; then
+  echo "  ↪ deleting login details (sessions + credentials, data kept)..."
+  RESET_LOGIN_ARGS=()
+  [[ $ASSUME_YES -eq 1 ]] && RESET_LOGIN_ARGS+=(--yes)
+  uv run python scripts/dev/reset_login.py "${RESET_LOGIN_ARGS[@]}" | sed 's/^/  /'
+fi
+
 # ── frontend ─────────────────────────────────────────────────────────────────
 step "[4/5] Frontend"
 if [[ $SKIP_UI -eq 1 ]]; then
@@ -176,9 +191,13 @@ if [[ $CHECK -eq 0 ]]; then
   # the server unless ENVIRONMENT=local; --check below never exports it, so the
   # smoke test still asserts the real 401s.
   export DEV_AUTOLOGIN="$AUTOLOGIN"
+  # No login flow at all: one hardcoded account (MAYA_SINGLE_USER_ID, or a
+  # sentinel row created on first request). Unlike DEV_AUTOLOGIN this is the
+  # app's default everywhere, so --login has to switch it off explicitly.
+  export SINGLE_USER="$SINGLE_USER"
   echo "  Web UI     $BASE"
-  if [[ "$AUTOLOGIN" == "1" ]]; then
-    echo "  Auth       bypassed as dev@local.test (--login for the real screen)"
+  if [[ "$SINGLE_USER" == "1" ]]; then
+    echo "  Auth       no login — single user ${MAYA_SINGLE_USER_ID:-solo@maya.local} (--login for the real screen)"
   fi
   echo "  Debug view $BASE/?debug=1"
   echo "  API docs   $BASE/docs"
@@ -196,6 +215,9 @@ fi
 # ── --check: boot, probe, tear down ──────────────────────────────────────────
 step "[5/5] Smoke test"
 LOG="$(mktemp -t maya-local-check)"
+# The probes below assert the login gate still exists, so the check server runs
+# with the real auth stack no matter what the app defaults to.
+export SINGLE_USER=0
 uv run uvicorn maya.web:app --host 127.0.0.1 --port "$PORT" > "$LOG" 2>&1 &
 SERVER_PID=$!
 cleanup() { kill "$SERVER_PID" 2>/dev/null || true; wait "$SERVER_PID" 2>/dev/null || true; }
@@ -235,6 +257,7 @@ status() { # name url expected-code
 # Public surface: everything the login screen needs before anyone signs in.
 probe "GET /                     (SPA shell, RTL)" "$BASE/" 'dir="rtl"'
 probe "GET /login                (SPA client route)" "$BASE/login" 'dir="rtl"'
+probe "GET /group                (group chat client route)" "$BASE/group" 'dir="rtl"'
 probe "GET /api/catalog          (wizard + auth strings)" "$BASE/api/catalog" '"login_title"'
 probe "GET /api/subscription/plans (plan catalog)" "$BASE/api/subscription/plans" '"plus_monthly"'
 
@@ -243,6 +266,7 @@ probe "GET /api/subscription/plans (plan catalog)" "$BASE/api/subscription/plans
 status "GET /api/companion        (401 when signed out)" "$BASE/api/companion" 401
 status "GET /companion/response_length (401 when signed out)" "$BASE/companion/response_length" 401
 status "GET /api/subscription     (401 when signed out)" "$BASE/api/subscription" 401
+status "GET /api/group            (401 when signed out)" "$BASE/api/group" 401
 status "GET /api/nope             (404, not the SPA shell)" "$BASE/api/nope" 404
 
 # The database is reachable only if a signup round-trips. Uses a throwaway

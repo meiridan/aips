@@ -10,7 +10,8 @@ interface Props {
   onOpen: (preset: Preset) => void;
   /** Leave the gallery for the six-step build-your-own wizard. */
   onCustom: () => void;
-  onLogout: () => void;
+  /** Omitted in single-user mode: nothing to log out of, so no button. */
+  onLogout?: () => void;
 }
 
 /** Which single-choice group each chip row filters on: `spec[group] === option`. */
@@ -96,23 +97,29 @@ export default function PresetGallery({ catalog, user, onOpen, onCustom, onLogou
             🔍
           </button>
 
-          <button
-            type="button"
-            className="avatar-btn"
-            aria-label={user?.name ?? s.logout}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            {(user?.name ?? "").trim().slice(0, 1) || "🙂"}
-          </button>
-
-          {menuOpen && (
-            <div className="header-menu">
-              {user?.email && <span className="header-menu-email">{user.email}</span>}
-              <button type="button" className="header-link" onClick={onLogout}>
-                {s.logout}
+          {/* The avatar menu holds nothing but the account: no login flow, no
+              menu, rather than a button that opens an empty box. */}
+          {onLogout && (
+            <>
+              <button
+                type="button"
+                className="avatar-btn"
+                aria-label={user?.name ?? s.logout}
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen(!menuOpen)}
+              >
+                {(user?.name ?? "").trim().slice(0, 1) || "🙂"}
               </button>
-            </div>
+
+              {menuOpen && (
+                <div className="header-menu">
+                  {user?.email && <span className="header-menu-email">{user.email}</span>}
+                  <button type="button" className="header-link" onClick={onLogout}>
+                    {s.logout}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </header>

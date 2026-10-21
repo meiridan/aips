@@ -78,6 +78,11 @@ class User(Base):
 
 class Companion(Base):
     __tablename__ = "companions"
+    __table_args__ = (
+        # One companion per role per account: the account's own ("primary") and
+        # each group-chat partner (e.g. "lila") — see maya.conversation.rooms.
+        Index("ix_companions_user_slot", "user_id", "slot", unique=True),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
@@ -85,6 +90,7 @@ class Companion(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    slot: Mapped[str] = mapped_column(Text, nullable=False, server_default="primary")
     name: Mapped[str] = mapped_column(Text, nullable=False, server_default="Maya")
     template_id: Mapped[str] = mapped_column(Text, nullable=False, server_default="flirt")
     # Phase 3: personality blob + generated backstory (filled by genesis).
@@ -107,20 +113,77 @@ class Companion(Base):
     )
 
 
-class Message(Base):
-    __tablename__ = "messages"
+class Conversation(Base):
+    """A transcript: one companion's 1:1 chat ("solo") or a room of several ("group").
+
+    Per-companion state (memories, emotions, relationship, commitments) is NOT
+    scoped to a conversation — Maya is the same person in both rooms; only what
+    she has seen said differs.
+    """
+
+    __tablename__ = "conversations"
     __table_args__ = (
-        CheckConstraint("role IN ('user', 'assistant', 'system')", name="messages_role_check"),
-        Index("idx_messages_companion_created", "companion_id", "created_at"),
+        CheckConstraint("kind IN ('solo', 'group')", name="conversations_kind_check"),
+        Index("idx_conversations_user", "user_id", "kind"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
     )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str | None] = mapped_column(Text)
+    # Group rooms: how the members relate to each other, fed to every prompt.
+    dynamics: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    # Group rooms: controls the user picked (maya/conversation/group_settings.py).
+    settings: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ConversationMember(Base):
+    __tablename__ = "conversation_members"
+    __table_args__ = (Index("idx_conversation_members_companion", "companion_id"),)
+
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
     companion_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("companions.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Message(Base):
+    __tablename__ = "messages"
+    __table_args__ = (
+        CheckConstraint("role IN ('user', 'assistant', 'system')", name="messages_role_check"),
+        Index("idx_messages_companion_created", "companion_id", "created_at"),
+        Index("idx_messages_conversation_created", "conversation_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=func.gen_random_uuid()
+    )
+    # Every transcript read goes through this, never companion_id: Maya's group
+    # replies carry her companion_id too and must not leak into her solo chat.
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.id", ondelete="CASCADE"),
         nullable=False,
+    )
+    # The speaker for an assistant turn, the addressee for a solo user turn, and
+    # NULL for a group user turn (addressees then live in metadata.addressed).
+    companion_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("companions.id", ondelete="CASCADE"),
+        nullable=True,
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -131,7 +194,7 @@ class Message(Base):
     extra: Mapped[dict] = mapped_column("metadata", JSONB, server_default="{}")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    companion: Mapped[Companion] = relationship(back_populates="messages")
+    companion: Mapped[Companion | None] = relationship(back_populates="messages")
 
 
 class Memory(Base):

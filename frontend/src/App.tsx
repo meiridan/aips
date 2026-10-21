@@ -8,6 +8,7 @@ import SignupScreen from "./auth/SignupScreen";
 import { useSession } from "./auth/useSession";
 import SubscriptionScreen from "./billing/SubscriptionScreen";
 import Chat from "./chat/Chat";
+import GroupChat from "./chat/GroupChat";
 import PresetGallery from "./presets/PresetGallery";
 import PresetProfile from "./presets/PresetProfile";
 import { PUBLIC_ROUTES, ROUTES, useRoute } from "./router";
@@ -22,8 +23,11 @@ import Wizard from "./wizard/Wizard";
  *  six-step wizard, whose final button either continues to chat or re-creates
  *  her (see Wizard.tsx).
  *
- *  When the server reports `auth.dev_login` (local DEV_AUTOLOGIN) there is no
- *  login screen at all — the app opens on the gallery as a fixed dev account.
+ *  When the server reports `auth.single_user` (SINGLE_USER, the current default)
+ *  there is no login flow at all: `/api/auth/me` always answers, so the status is
+ *  always "authed", the auth screens below are unreachable, and the logout button
+ *  is hidden everywhere. `auth.dev_login` (local DEV_AUTOLOGIN) is the older,
+ *  local-only version of the same bypass.
  */
 export default function App() {
   const { path, query, navigate } = useRoute();
@@ -32,8 +36,7 @@ export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [companion, setCompanion] = useState<CompanionState | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // null = nothing picked yet, so the opening screen comes from the catalog:
-  // "presets" normally, the wizard while the server is in dev-login mode.
+  // null = nothing picked yet, so the opening screen is the preset gallery.
   const [mode, setMode] = useState<"presets" | "wizard" | "chat" | null>(null);
   const [viewing, setViewing] = useState<Preset | null>(null);
 
@@ -102,6 +105,8 @@ export default function App() {
   const s = catalog.strings;
   // The gallery is the opening screen; the wizard is opt-in from its ✨ tile.
   const screen = mode ?? "presets";
+  // No login flow means no logout: the screens hide the button when it is absent.
+  const onLogout = catalog.auth?.single_user ? undefined : session.logout;
 
   if (session.status === "anon") {
     switch (path) {
@@ -135,7 +140,7 @@ export default function App() {
       <SubscriptionScreen
         strings={s}
         justReturnedFromCheckout={query.get("checkout") === "success"}
-        onLogout={session.logout}
+        onLogout={onLogout}
       />
     );
   }
@@ -148,10 +153,33 @@ export default function App() {
     );
   }
 
+  // The shared room needs her to exist first: it is "her and her friend".
+  const groupAvailable = (catalog.features?.group_chat ?? false) && companion.onboarded;
+
+  if (path === ROUTES.group && groupAvailable) {
+    return (
+      <div className="app">
+        <GroupChat
+          strings={s}
+          onLogout={onLogout}
+          onBack={() => {
+            setMode("chat");
+            navigate(ROUTES.chat);
+          }}
+        />
+      </div>
+    );
+  }
+
   if (screen === "chat") {
     return (
       <div className="app">
-        <Chat companion={companion} strings={s} onLogout={session.logout} />
+        <Chat
+          companion={companion}
+          strings={s}
+          onLogout={onLogout}
+          onOpenGroup={groupAvailable ? () => navigate(ROUTES.group) : undefined}
+        />
       </div>
     );
   }
@@ -167,7 +195,7 @@ export default function App() {
           onDone={() => loadCompanion(true)}
           onSkip={() => setMode("chat")}
           onBack={() => setMode("presets")}
-          onLogout={session.logout}
+          onLogout={onLogout}
         />
       </div>
     );
@@ -190,7 +218,7 @@ export default function App() {
           user={session.user}
           onOpen={setViewing}
           onCustom={() => setMode("wizard")}
-          onLogout={session.logout}
+          onLogout={onLogout}
         />
       )}
     </div>

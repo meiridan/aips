@@ -10,12 +10,15 @@ import { useChatSocket } from "./useChatSocket";
 interface Props {
   companion: CompanionState;
   strings: Record<string, string>;
-  onLogout: () => void;
+  /** Omitted in single-user mode: nothing to log out of, so no button. */
+  onLogout?: () => void;
+  /** Omitted when the server has group chat switched off. */
+  onOpenGroup?: () => void;
 }
 
-export default function Chat({ companion, strings, onLogout }: Props) {
+export default function Chat({ companion, strings, onLogout, onOpenGroup }: Props) {
   // A dead session closes the socket with 4401; dropping to the login screen
-  // is exactly what logout already does.
+  // is exactly what logout already does. Unreachable in single-user mode.
   const { messages, debug, connected, busy, quotaExceeded, send } = useChatSocket(onLogout);
   const [draft, setDraft] = useState("");
   const [level, setLevel] = useState(companion.response_length);
@@ -53,6 +56,11 @@ export default function Chat({ companion, strings, onLogout }: Props) {
             {connected ? strings.connected : strings.disconnected}
           </div>
         </div>
+        {onOpenGroup && (
+          <button type="button" className="header-link" onClick={onOpenGroup}>
+            {strings.group_open}
+          </button>
+        )}
         <button
           type="button"
           className="header-link"
@@ -60,9 +68,11 @@ export default function Chat({ companion, strings, onLogout }: Props) {
         >
           {strings.to_subscription}
         </button>
-        <button type="button" className="header-link" onClick={onLogout}>
-          {strings.logout}
-        </button>
+        {onLogout && (
+          <button type="button" className="header-link" onClick={onLogout}>
+            {strings.logout}
+          </button>
+        )}
       </header>
 
       <div className="chat-messages" ref={feed}>

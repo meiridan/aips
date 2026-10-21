@@ -26,7 +26,8 @@ interface Props {
   /** Nothing was changed — enter chat without touching her. */
   onSkip: () => void;
   /** Sign out — reachable before onboarding, where there is no chat header. */
-  onLogout: () => void;
+  /** Omitted in single-user mode: nothing to log out of, so no button. */
+  onLogout?: () => void;
   /** Back to the gallery of ready-made companions. */
   onBack: () => void;
 }
@@ -105,9 +106,11 @@ export default function Wizard({
           <span className="chev">›</span>
           {s.preset_back}
         </button>
-        <button type="button" className="header-link" onClick={onLogout}>
-          {s.logout}
-        </button>
+        {onLogout && (
+          <button type="button" className="header-link" onClick={onLogout}>
+            {s.logout}
+          </button>
+        )}
       </header>
       <h1>{s.title}</h1>
       <Stepper total={total} current={state.step} />

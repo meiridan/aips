@@ -17,8 +17,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from maya.db.models import Base
 
 _DEV_URL = (
-    os.environ.get("DATABASE_URL")
-    or "postgresql+asyncpg://postgres:postgres@localhost:5432/maya"
+    os.environ.get("DATABASE_URL") or "postgresql+asyncpg://postgres:postgres@localhost:5432/maya"
 )
 _TEST_DBNAME = "maya_test"
 
@@ -57,6 +56,27 @@ def _clear_runtime_cache():
     runtime_cache.clear()
     yield
     runtime_cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _single_user_off(monkeypatch):
+    """Run the suite with the real login flow.
+
+    SINGLE_USER defaults to on in the app, which would make every
+    "unauthenticated" expectation in the auth, session, OAuth, billing and
+    WebSocket-4401 tests unreachable. Tests that want single-user mode turn it
+    back on themselves (see tests/unit/test_single_user.py).
+    """
+    from maya.auth import deps
+    from maya.config import get_settings
+
+    monkeypatch.setenv("SINGLE_USER", "0")
+    monkeypatch.delenv("MAYA_SINGLE_USER_ID", raising=False)
+    get_settings.cache_clear()
+    deps.reset_solo_cache()
+    yield
+    get_settings.cache_clear()
+    deps.reset_solo_cache()
 
 
 @pytest.fixture(scope="session")

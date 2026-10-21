@@ -15,6 +15,10 @@ DEFAULT = 2
 _WORDS = {1: 100, 2: 300, 3: 1000}
 # level → hard max_tokens cap (headroom above the word target)
 _MAX_TOKENS = {1: 250, 2: 700, 3: 1600}
+# Group rooms count sentences, not words: several voices share the screen, so
+# "short" there means a text-message beat, far below the 1:1 short.
+_GROUP_LENGTH = {1: "1–3 sentences", 2: "3–5 sentences", 3: "one or two short paragraphs"}
+_GROUP_MAX_TOKENS = {1: 160, 2: 380, 3: 800}
 _LABELS = {1: "short", 2: "medium", 3: "long"}
 _ALIASES = {"short": 1, "medium": 2, "long": 3, "1": 1, "2": 2, "3": 3}
 
@@ -41,6 +45,14 @@ def words_for(level: object) -> int:
 
 def max_tokens_for(level: object) -> int:
     return _MAX_TOKENS[normalize(level)]
+
+
+def group_length_for(level: object) -> str:
+    return _GROUP_LENGTH[normalize(level)]
+
+
+def group_max_tokens_for(level: object) -> int:
+    return _GROUP_MAX_TOKENS[normalize(level)]
 
 
 def label(level: object) -> str:

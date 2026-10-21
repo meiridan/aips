@@ -72,10 +72,14 @@ async def test_an_unknown_plan_id_is_not_a_paid_plan(db_sessionmaker, seeded_ids
 
 
 async def _send(sm, user_id, companion_id, count, *, age=timedelta(0)):
+    from maya.conversation.rooms import solo_conversation_id
+
+    conversation_id = await solo_conversation_id(sm, companion_id)
     async with sm() as session:
         for i in range(count):
             session.add(
                 Message(
+                    conversation_id=conversation_id,
                     companion_id=companion_id,
                     user_id=user_id,
                     role="user",
@@ -147,11 +151,15 @@ async def test_assistant_replies_do_not_count_against_the_user(
     get_settings.cache_clear()
     monkeypatch.setenv("FREE_DAILY_MESSAGE_LIMIT", "5")
     try:
+        from maya.conversation.rooms import solo_conversation_id
+
         user_id, companion_id = seeded_ids
+        conversation_id = await solo_conversation_id(db_sessionmaker, companion_id)
         async with db_sessionmaker() as session:
             for i in range(20):
                 session.add(
                     Message(
+                        conversation_id=conversation_id,
                         companion_id=companion_id,
                         user_id=user_id,
                         role="assistant",

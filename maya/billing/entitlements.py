@@ -77,7 +77,12 @@ async def quota_exceeded(sessionmaker: Any, user_id: uuid.UUID) -> bool:
     never asked and never trusted — hiding the compose box would be a hint, not
     a limit.
     """
-    limit = get_settings().free_daily_message_limit
+    settings = get_settings()
+    if settings.single_user:
+        # One shared account serves everyone in single-user mode, so a per-user
+        # daily cap would lock the whole instance out after 30 messages.
+        return False
+    limit = settings.free_daily_message_limit
     if limit <= 0:  # 0 or negative disables the cap entirely.
         return False
     if await is_subscriber(sessionmaker, user_id):

@@ -26,7 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from maya import runtime_cache
 from maya.companions.commitments import CommitmentService
 from maya.companions.templates import get_template
-from maya.conversation import prompt_log, response_length
+from maya.conversation import prompt_log, response_length, rooms
 from maya.conversation.moment_analyzer import (
     MomentAnalysis,
     MomentAnalyzer,
@@ -75,6 +75,7 @@ class _TurnCtx:
     turn_id: str
     user_id: uuid.UUID
     companion_id: uuid.UUID
+    conversation_id: uuid.UUID
     companion_name: str
     user_message: str
     prompt: list[dict]
@@ -118,9 +119,7 @@ class Orchestrator:
     ) -> None:
         self.llm = llm or LLMService()
         self._sessionmaker = sessionmaker or get_sessionmaker()
-        self.memory = memory or MemoryService(
-            llm=self.llm, sessionmaker=self._sessionmaker
-        )
+        self.memory = memory or MemoryService(llm=self.llm, sessionmaker=self._sessionmaker)
         self.emotional = emotional or EmotionalService(self._sessionmaker)
         self.relationship = relationship or RelationshipService(self._sessionmaker)
         self.commitments = commitments or CommitmentService(self._sessionmaker, llm=self.llm)
@@ -241,6 +240,7 @@ class Orchestrator:
         companion = await self._load_companion(companion_id)
         spans["companion_ms"] = int((time.perf_counter() - t) * 1000)
         baseline = get_template(companion.template_id).baseline_emotional if companion else {}
+        conversation_id = await rooms.solo_conversation_id(self._sessionmaker, companion_id)
 
         # One gather: save + all context reads + user_name, fully overlapped.
         t = time.perf_counter()
@@ -253,9 +253,16 @@ class Orchestrator:
             recent,
             user_name,
         ) = await asyncio.gather(
-            _timed(spans, "save", self._save_user_message(companion_id, user_id, content)),
-            _timed(spans, "memory",
-                   self.memory.search_relevant(content, user_id, companion_id, MEMORY_LIMIT)),
+            _timed(
+                spans,
+                "save",
+                self._save_user_message(conversation_id, companion_id, user_id, content),
+            ),
+            _timed(
+                spans,
+                "memory",
+                self.memory.search_relevant(content, user_id, companion_id, MEMORY_LIMIT),
+            ),
             _timed(spans, "emotional", self.emotional.get(companion_id, baseline=baseline)),
             _timed(spans, "relationship", self.relationship.get(companion_id, user_id)),
             _timed(spans, "commitments", self.commitments.get_recent(companion_id, limit=20)),
@@ -264,11 +271,16 @@ class Orchestrator:
         )
         spans["gather_ms"] = int((time.perf_counter() - t) * 1000)
         hours_since = self._hours_since(getattr(relationship, "last_interaction_at", None))
-        await _emit(on_step, "memory", f"✅ Gathered context ({len(memories)} memories)", {
-            "memories": len(memories),
-            "stage": getattr(relationship, "stage", "?"),
-            "feelings": getattr(emotional, "feelings", {}),
-        })
+        await _emit(
+            on_step,
+            "memory",
+            f"✅ Gathered context ({len(memories)} memories)",
+            {
+                "memories": len(memories),
+                "stage": getattr(relationship, "stage", "?"),
+                "feelings": getattr(emotional, "feelings", {}),
+            },
+        )
 
         # 3. Moment analysis — concurrent, not awaited here (off critical path).
         moment_task = asyncio.create_task(
@@ -312,6 +324,7 @@ class Orchestrator:
             turn_id=turn_id,
             user_id=user_id,
             companion_id=companion_id,
+            conversation_id=conversation_id,
             companion_name=companion.name if companion else "Maya",
             user_message=content,
             prompt=prompt,
@@ -326,18 +339,28 @@ class Orchestrator:
         reply is already produced / displayed)."""
         async with self._sessionmaker() as session:
             assistant_msg = await self._save_message(
-                session, ctx.companion_id, ctx.user_id, "assistant", response
+                session,
+                ctx.companion_id,
+                ctx.user_id,
+                "assistant",
+                response,
+                conversation_id=ctx.conversation_id,
             )
             assistant_msg_id = assistant_msg.id
             await session.commit()
         await _emit(ctx.on_step, "step", "✅ Assistant response saved", {})
 
         moment = await ctx.moment_task  # the real moment, computed in parallel
-        await _emit(ctx.on_step, "step", f"🔍 Moment: {moment.moment_type}", {
-            "moment_type": moment.moment_type,
-            "intensity": moment.emotional_intensity,
-            "priority": moment.character_priority,
-        })
+        await _emit(
+            ctx.on_step,
+            "step",
+            f"🔍 Moment: {moment.moment_type}",
+            {
+                "moment_type": moment.moment_type,
+                "intensity": moment.emotional_intensity,
+                "priority": moment.character_priority,
+            },
+        )
         await self._post_process(
             user_id=ctx.user_id,
             companion_id=ctx.companion_id,
@@ -374,17 +397,24 @@ class Orchestrator:
             self.emotional.update_after_message(companion_id, moment.emotional_delta),
             self.relationship.increment_interaction(companion_id),
             self.commitments.extract_from_message(
-                companion_id, companion_name, assistant_message,
+                companion_id,
+                companion_name,
+                assistant_message,
                 source_message_id=assistant_msg_id,
             ),
             return_exceptions=True,
         )
         facts = results[0] if not isinstance(results[0], Exception) else []
         new_commits = results[3] if not isinstance(results[3], Exception) else []
-        await _emit(on_step, "memory", "💡 Post-processing applied", {
-            "new_facts": facts if isinstance(facts, list) else [],
-            "new_commitments": len(new_commits) if isinstance(new_commits, list) else 0,
-        })
+        await _emit(
+            on_step,
+            "memory",
+            "💡 Post-processing applied",
+            {
+                "new_facts": facts if isinstance(facts, list) else [],
+                "new_commitments": len(new_commits) if isinstance(new_commits, list) else 0,
+            },
+        )
 
         # Log a significant event for high-intensity moments.
         if moment.emotional_intensity > SIGNIFICANT_INTENSITY:
@@ -398,47 +428,66 @@ class Orchestrator:
         # Maybe transition stage.
         new_stage = await self.relationship.evaluate_stage_transition(companion_id)
         if new_stage is not None:
-            await _emit(on_step, "step", f"💞 Stage → {new_stage.value}", {
-                "stage": new_stage.value,
-            })
+            await _emit(
+                on_step,
+                "step",
+                f"💞 Stage → {new_stage.value}",
+                {
+                    "stage": new_stage.value,
+                },
+            )
 
     # ── helpers ──────────────────────────────────────────────────────────
 
     async def _save_message(
         self,
         session: AsyncSession,
-        companion_id: uuid.UUID,
+        companion_id: uuid.UUID | None,
         user_id: uuid.UUID,
         role: str,
         content: str,
+        *,
+        conversation_id: uuid.UUID,
+        extra: dict | None = None,
     ) -> Message:
         msg = Message(
-            companion_id=companion_id, user_id=user_id, role=role, content=content
+            conversation_id=conversation_id,
+            companion_id=companion_id,
+            user_id=user_id,
+            role=role,
+            content=content,
+            extra=extra or {},
         )
         session.add(msg)
         await session.flush()
         return msg
 
     async def _save_user_message(
-        self, companion_id: uuid.UUID, user_id: uuid.UUID, content: str
+        self,
+        conversation_id: uuid.UUID,
+        companion_id: uuid.UUID,
+        user_id: uuid.UUID,
+        content: str,
     ) -> None:
         """Own session, committed — safe to run concurrently in the prepare gather."""
         async with self._sessionmaker() as session:
-            await self._save_message(session, companion_id, user_id, "user", content)
+            await self._save_message(
+                session, companion_id, user_id, "user", content, conversation_id=conversation_id
+            )
             await session.commit()
 
-    async def _recent_messages_own(
-        self, companion_id: uuid.UUID, limit: int
-    ) -> list[Message]:
+    async def _recent_messages_own(self, companion_id: uuid.UUID, limit: int) -> list[Message]:
+        """Her solo transcript — never her lines from a group room."""
+        conversation_id = await rooms.solo_conversation_id(self._sessionmaker, companion_id)
         async with self._sessionmaker() as session:
-            return await self._recent_messages(session, companion_id, limit)
+            return await self._recent_messages(session, conversation_id, limit)
 
     async def _recent_messages(
-        self, session: AsyncSession, companion_id: uuid.UUID, limit: int
+        self, session: AsyncSession, conversation_id: uuid.UUID, limit: int
     ) -> list[Message]:
         stmt = (
             select(Message)
-            .where(Message.companion_id == companion_id)
+            .where(Message.conversation_id == conversation_id)
             .order_by(Message.created_at.desc())
             .limit(limit)
         )
